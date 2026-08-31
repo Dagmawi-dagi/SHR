@@ -1,0 +1,233 @@
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import MainLayout from "@/layouts/MainLayout.vue";
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: "/login",
+      name: "login",
+      component: () => import("@/views/auth/loginpage.vue"),
+      meta: { requiresAuth: false, title: "Login" },
+    },
+    {
+      path: "/",
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: "dashboard",
+          name: "dashboard",
+          component: () => import("@/views/dashboard/Dashboard.vue"),
+          meta: {
+            title: "Dashboard",
+            roles: ["admin", "hr", "finance", "employee", "attendance","charity_admin","charity_teamleader"],
+          },
+        },
+        {
+          path: "profile",
+          name: "profile",
+          component: () => import("@/views/employee/Profile.vue"),
+          meta: {
+            title: "My Profile",
+            roles: ["admin", "hr", "finance", "employee", "attendance"],
+          },
+        },
+        {
+          path: "employees",
+          name: "employees",
+          component: () => import("@/views/employee/Employees.vue"),
+          meta: { title: "Employees Management", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "employees/create",
+          name: "employee-create",
+          component: () => import("@/views/employee/EmployeeCreate.vue"),
+          meta: { title: "Create Employee", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "employees/:id",
+          name: "employee-detail",
+          component: () => import("@/views/employee/EmployeeDetail.vue"),
+          meta: { title: "Employee Details", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "employees/:id/edit",
+          name: "employee-edit",
+          component: () => import("@/views/employee/EmployeeEdit.vue"),
+          meta: { title: "Edit Employee", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+          {
+       path: "documents-letters",
+          name: "DocumentsLetters",
+          component: () => import("@/views/employee/DocumentsLetters.vue"),
+          meta: { title: "Documents & Letters", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "users",
+          name: "users",
+          component: () => import("@/views/users/Users.vue"),
+          meta: { title: "Users Management", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "analytics",
+          name: "analytics",
+          component: () => import("@/views/analytics/Analytics.vue"),
+          meta: { title: "HR Analytics", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "attendance",
+          name: "attendance",
+          component: () => import("@/views/attendance/attendance.vue"),
+          meta: {
+            title: "HR attendance",
+            roles: ["admin", "hr", "finance", "employee", "attendance"],
+          },
+        },
+        {
+          path: "settings",
+          name: "settings",
+          component: () => import("@/views/settings/settings.vue"),
+          meta: { title: "HR settings", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "leaves",
+          name: "leaves",
+          component: () => import("@/views/leaveRequest/leaves.vue"),
+          meta: { title: " leaves", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+        {
+          path: "payroll",
+          name: "payroll",
+          component: () => import("@/views/payroll/payroll.vue"),
+          meta: { title: "Payroll Management", roles: ["admin", "finance", "hr", "employee", "attendance"] },
+        },
+
+        {
+          path: "approved-leaves-list",
+          name: "approved-leaves-list",
+          component: () =>
+            import("@/views/leaveRequest/approvedLeavesList.vue"),
+          meta: {
+            title: "Approved Leave Requests",
+            roles: ["admin", "hr", "finance", "employee", "attendance"],
+          },
+        },
+        {
+          path: "leave-detail/:id",
+          name: "leave-detail",
+          component: () => import("@/views/leaveRequest/leaveDetail.vue"),
+          meta: { title: "Leave Detail", roles: ["admin", "hr", "finance", "employee", "attendance"] },
+        },
+
+        // ──────────────────── CHARITY SECTION ───────────────────────────────
+        
+           {
+          path: 'charity/teams',
+          name: 'charity-teams',
+          component: () => import('@/views/charity/teams.vue'),
+          meta: { title: 'Charity Teams', roles: ['admin', 'charity_admin','charity_teamleader'] },
+        },
+        {
+          path: 'charity/teams/create',
+          name: 'charity-teams-create',
+          component: () => import('@/views/charity/team_create.vue'),
+          meta: { title: 'Create Charity Team', roles: ['admin', 'charity_admin','charity_teamleader'] },
+        },
+        {
+          path: 'charity/teams/:id',
+          name: 'charity-teams-view',
+          component: () => import('@/views/charity/team_create.vue'),
+          meta: { title: 'View Charity Team', roles: ['admin', 'charity_admin', 'charity_teamleader','charity_teamleader'] },
+        },
+        {
+          path: 'charity/teams/:id/edit',
+          name: 'charity-teams-edit',
+          component: () => import('@/views/charity/team_create.vue'),
+          meta: { title: 'Edit Charity Team', roles: ['admin', 'charity_admin','charity_teamleader'] },
+        },
+        {
+          path: 'charity/beneficiaries',
+          name: 'charity-beneficiaries',
+          component: () => import('@/views/charity/beneficiaries.vue'),
+          meta: { title: 'All Beneficiaries', roles: ['admin', 'charity_admin', 'charity_teamleader'] },
+        },
+        {
+          path: 'charity/my-beneficiaries',
+          redirect: { name: 'charity-beneficiaries' }
+        },
+        {
+          path: 'charity/beneficiaries/create',
+          name: 'charity-beneficiaries-create',
+          component: () => import('@/views/charity/beneficiary_create.vue'),
+          meta: { title: 'Add Beneficiary', roles: ['admin', 'charity_admin', 'charity_teamleader'] },
+        },
+        {
+          path: 'charity/beneficiaries/:id',
+          name: 'charity-beneficiaries-view',
+          component: () => import('@/views/charity/beneficiary_create.vue'),
+          meta: { title: 'View Beneficiary', roles: ['admin', 'charity_admin', 'charity_teamleader'] },
+        },
+        {
+          path: 'charity/beneficiaries/:id/edit',
+          name: 'charity-beneficiaries-edit',
+          component: () => import('@/views/charity/beneficiary_create.vue'),
+          meta: { title: 'Edit Beneficiary', roles: ['admin', 'charity_admin', 'charity_teamleader'] },
+        },
+        {
+          path: '/charity/beneficiaries/:id/details',
+          name: 'BeneficiaryDetails',
+          component: () => import('@/views/charity/beneficiary_details.vue')
+        },
+        {
+          path: 'charity/settings',
+          name: 'charity-settings',
+          component: () => import('@/views/charity/settings.vue'),
+          meta: { title: 'Charity Settings', roles: ['admin', 'charity_admin'] },
+        },
+        
+
+        {
+          path: "",
+          redirect: "/dashboard",
+        },
+      ],
+    },
+  ],
+});
+
+// Navigation guard with role-based access control
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
+  const isAuthenticated = authStore.isAuthenticated;
+  const userRole = authStore.userRole;
+
+  // Check authentication
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next("/login");
+    return;
+  }
+
+  // Redirect to dashboard if already logged in and trying to access login
+  if (to.path === "/login" && isAuthenticated) {
+    next("/dashboard");
+    return;
+  }
+
+  // Check role-based access
+  if (
+    to.meta.roles &&
+    Array.isArray(to.meta.roles) &&
+    to.meta.roles.length > 0
+  ) {
+    if (!to.meta.roles.includes(userRole)) {
+      next("/dashboard");
+      return;
+    }
+  }
+
+  next();
+});
+
+export default router;
