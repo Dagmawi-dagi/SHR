@@ -18,26 +18,128 @@ const createDirectories = () => {
     'uploads/profiles',
     
     // Document categories
-    'uploads/documents/national_id',      // For ID cards, passports
-    'uploads/documents/spouse',            // For spouse documents
-    'uploads/documents/children',          // For child documents
-    'uploads/documents/education',         // For degrees, certificates, CVs
-    'uploads/documents/training',          // For training certificates
-    'uploads/documents/work_experience',   // For experience letters
-    'uploads/documents/guarantees',        // For guarantee letters
-    'uploads/documents/parent_support',    // For parent support docs
-    'uploads/documents/nationality',       // For naturalization docs
-    'uploads/documents/health',            // For health documents
-    'uploads/documents/legal',             // For legal documents
-    'uploads/documents/contracts',         // For contracts
-    'uploads/documents/performance',       // For performance reviews
+    'uploads/documents/national_id',
+    'uploads/documents/spouse',
+    'uploads/documents/children',
+    'uploads/documents/education',
+    'uploads/documents/training',
+    'uploads/documents/work_experience',
+    'uploads/documents/parent_support',
+    'uploads/documents/nationality',
+    'uploads/documents/health',
+    'uploads/documents/legal',
+    'uploads/documents/contracts',
+    'uploads/documents/performance',
+    
+    // ========== OTHER DOCUMENTS (NEW) ==========
+    'uploads/documents/guarantees',          // Guarantee Letters
+    'uploads/documents/employment_letters',  // Employment Letters
+    'uploads/documents/other_documents',     // Other & Custom Documents
     
     // Attendance
-    'uploads/attendance/'
+    'uploads/attendance/',
+    
+    // Item specifications
+    'uploads/items/specifications',
+    
+    // Store Balance
+    'uploads/balances/',
+    'uploads/balances/imports',
+    'uploads/balances/exports',
   ];
   dirs.forEach(dir => ensureDirectoryExists(dir));
 };
 createDirectories();
+
+// ============================================================================
+// STORE BALANCE - IMPORT STORAGE
+// ============================================================================
+const balanceStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/balances/imports/';
+    ensureDirectoryExists(dir);
+    console.log('💾 Balance import destination:', dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    const sanitizedName = baseName.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `balance-import-${sanitizedName}-${uniqueSuffix}${ext}`;
+    console.log('📄 Balance import filename:', filename);
+    cb(null, filename);
+  }
+});
+
+// ============================================================================
+// STORE BALANCE - FILE FILTER
+// ============================================================================
+const balanceFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  console.log(`📄 File upload attempt: ${file.originalname}`);
+  console.log(`🔍 Extension: ${ext}`);
+
+  const allowedExtensions = ['.csv', '.xlsx', '.xls'];
+
+  if (allowedExtensions.includes(ext)) {
+    console.log('✅ Allowed: Extension matched.');
+    cb(null, true);
+  } else {
+    console.error('❌ Rejected: Extension not allowed.');
+    cb(new Error('Only CSV and Excel files are allowed (.csv, .xlsx, .xls)'));
+  }
+};
+
+// ============================================================================
+// STORE BALANCE - UPLOAD INSTANCE
+// ============================================================================
+const uploadBalance = multer({
+  storage: balanceStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: balanceFileFilter
+});
+
+// ============================================================================
+// STORE BALANCE - MIDDLEWARE
+// ============================================================================
+const uploadSingleBalance = (req, res, next) => {
+  console.log('=== uploadSingleBalance called ===');
+  uploadBalance.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('Multer balance error:', err);
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'FILE_TOO_LARGE') {
+          return res.status(400).json({
+            success: false,
+            error: 'File too large. Maximum size is 10MB.'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          error: err.message
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        error: err.message
+      });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+    
+    console.log('✅ File uploaded:', req.file.filename);
+    console.log('📊 File size:', req.file.size);
+    console.log('📁 File path:', req.file.path);
+    
+    next();
+  });
+};
 
 // ============================================================================
 // HELPER: Get document folder based on type
@@ -46,6 +148,16 @@ const getDocumentFolder = (documentType, subType = null) => {
   // Profile pictures are handled separately
   if (documentType === 'profile_picture') {
     return null;
+  }
+  
+  // Item specifications
+  if (documentType === 'item_specification') {
+    return 'items/specifications';
+  }
+  
+  // Store balance imports
+  if (documentType === 'balance_import') {
+    return 'balances/imports';
   }
   
   const folders = {
@@ -78,7 +190,7 @@ const getDocumentFolder = (documentType, subType = null) => {
     'experience_letter': 'work_experience',
     
     // Guarantee
-    'guarantee_letter': 'guarantees',
+    'guarantee_letter': 'guarantees',      // ← Added this
     'sdt_letter': 'guarantees',
     'guarantee_other': 'guarantees',
     
@@ -94,7 +206,12 @@ const getDocumentFolder = (documentType, subType = null) => {
     
     // Contracts & Performance
     'contract': 'contracts',
-    'performance-review': 'performance'
+    'performance-review': 'performance',
+    
+    // ========== OTHER DOCUMENTS ==========
+    'employment_letter': 'employment_letters',
+    'other_document': 'other_documents',
+    'custom_document': 'other_documents',
   };
   
   const folder = folders[documentType];
@@ -119,9 +236,29 @@ const profileStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const employeeId = req.params.id;
     const ext = path.extname(file.originalname);
-    // Use params.id, not documentType
     const filename = `${employeeId}-profile-${Date.now()}${ext}`;
     console.log('📄 Profile filename:', filename);
+    cb(null, filename);
+  }
+});
+
+// ============================================================================
+// ITEM SPECIFICATION STORAGE
+// ============================================================================
+const itemSpecStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = 'uploads/items/specifications/';
+    ensureDirectoryExists(dir);
+    console.log('💾 Item spec destination:', dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const itemId = req.params.id || req.params.itemId;
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    const sanitizedName = baseName.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `spec_${itemId}_${sanitizedName}_${Date.now()}${ext}`;
+    console.log('📄 Item spec filename:', filename);
     cb(null, filename);
   }
 });
@@ -135,7 +272,6 @@ const documentStorage = multer.diskStorage({
     
     console.log('📍 documentStorage.destination - Type:', documentType);
     
-    // This should never happen for profile_picture if routing is correct
     if (documentType === 'profile_picture') {
       console.error('❌ ERROR: profile_picture reached documentStorage!');
       return cb(new Error('Profile pictures should use profile storage, not document storage'), null);
@@ -153,7 +289,6 @@ const documentStorage = multer.diskStorage({
     cb(null, dir);
   },
   filename: async (req, file, cb) => {
-    // ✅ Get employee code from database for better filenames
     const { Employee } = require('../models');
     const employeeId = req.params.id;
     
@@ -222,7 +357,20 @@ const profileFilter = (req, file, cb) => {
   }
 };
 
-// Filter for legal/important documents (only PDF)
+// Filter for item specifications (only PDF)
+const itemSpecFilter = (req, file, cb) => {
+  const allowedTypes = /pdf/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+  
+  if (mimetype && extname) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF files are allowed for item specifications'));
+  }
+};
+
+// Filter for legal/important documents
 const legalDocumentFilter = (req, file, cb) => {
   const allowedTypes = /pdf|doc|docx|xls|xlsx|jpg|jpeg|png|gif|webp/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -231,7 +379,7 @@ const legalDocumentFilter = (req, file, cb) => {
   if (mimetype && extname) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed for legal documents'));
+    cb(new Error('Invalid file type for legal documents'));
   }
 };
 
@@ -239,21 +387,30 @@ const legalDocumentFilter = (req, file, cb) => {
 // UPLOAD CONFIGURATIONS
 // ============================================================================
 const uploadProfile = multer({
-  storage: profileStorage,  // ← Must be profileStorage, NOT documentStorage!
+  storage: profileStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: profileFilter
 });
 
 const uploadDocument = multer({
   storage: documentStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: documentFilter
 });
 
 const uploadLegalDocument = multer({
   storage: documentStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB for legal docs
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: legalDocumentFilter
+});
+
+// ============================================================================
+// ITEM SPECIFICATION UPLOAD CONFIG
+// ============================================================================
+const uploadItemSpecification = multer({
+  storage: itemSpecStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: itemSpecFilter
 });
 
 // ============================================================================
@@ -285,7 +442,7 @@ const attendanceFileFilter = (req, file, cb) => {
 
 const uploadAttendance = multer({
   storage: attendanceStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: attendanceFileFilter
 });
 
@@ -330,12 +487,43 @@ const uploadSingleAttendance = (req, res, next) => {
   });
 };
 
-// Generic upload handler that accepts document type from request body
+// ============================================================================
+// ITEM SPECIFICATION UPLOAD MIDDLEWARE
+// ============================================================================
+const uploadItemSpec = (req, res, next) => {
+  console.log('=== uploadItemSpec called ===');
+  uploadItemSpecification.single('specification')(req, res, (err) => {
+    if (err) {
+      console.error('Multer item spec error:', err);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    next();
+  });
+};
+
+// ============================================================================
+// GENERIC UPLOAD HANDLER - Supports ALL document types
+// ============================================================================
 const uploadDynamicDocument = (req, res, next) => {
   const documentType = req.params.type;
   
   console.log('🔄 uploadDynamicDocument - Type from params:', documentType);
-  
+
+  // ========== ALL 4 OTHER DOCUMENT TYPES ==========
+  if (documentType === 'guarantee_letter' ||
+      documentType === 'employment_letter' ||
+      documentType === 'other_document' ||
+      documentType === 'custom_document') {
+    console.log(`📄 Routing to uploadDocument for ${documentType}`);
+    return uploadDocument.single('file')(req, res, (err) => {
+      if (err) {
+        console.error('❌ Multer document error:', err);
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      next();
+    });
+  }
+
   if (!documentType) {
     return res.status(400).json({ 
       success: false, 
@@ -343,7 +531,7 @@ const uploadDynamicDocument = (req, res, next) => {
     });
   }
   
-  // ✅ PROFILE PICTURES - MUST use uploadProfile FIRST
+  // ✅ PROFILE PICTURES
   if (documentType === 'profile_picture') {
     console.log('📸 Routing to uploadProfile for profile picture');
     return uploadProfile.single('file')(req, res, (err) => {
@@ -369,7 +557,7 @@ const uploadDynamicDocument = (req, res, next) => {
       next();
     });
   } 
-  // ✅ REGULAR DOCUMENTS
+  // ✅ REGULAR DOCUMENTS (all other types)
   else {
     console.log('📄 Routing to uploadDocument');
     return uploadDocument.single('file')(req, res, (err) => {
@@ -394,10 +582,18 @@ module.exports = {
   uploadAttendance,
   uploadDynamicDocument,
   
+  // Item specification upload
+  uploadItemSpec,
+  
+  // Store Balance upload
+  uploadSingleBalance,
+  uploadBalance,
+  
   // Raw multer instances (for advanced use)
   uploadProfile,
   uploadDocument,
   uploadLegalDocument,
+  uploadItemSpecification,
   
   // Utilities
   getDocumentFolder,

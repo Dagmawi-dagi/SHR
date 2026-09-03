@@ -1,14 +1,51 @@
 {
+  "employmentType": {
+    "fullTime": "Full Time",
+    "partTime": "Part Time",
+    "contract": "Contract",
+    "intern": "Intern"
+  },
+  "status": {
+    "active": "Active",
+    "onLeave": "On Leave",
+    "terminated": "Terminated"
+  },
+  "calendar": {
+    "ec": "E.C"
+  },
+
   "common": {
     "save": "Save",
+    "missing": "missing",
+    "remove": "remove",
+    "system": "System",
+    "at": "at",
+    "to": "to",
+    "view": "View",
+
+    "ok": "OK",
+    "terminateEmployee": "Terminate Employee",
+    "terminate": "Terminate",
+    "terminating": "Terminating...",
+    "reactivateEmployee": "Reactivate Employee",
+    "reactivate": "Reactivate",
+    "reactivating": "Reactivating...",
+    "view-Experience-Letter": "view Experience Letter",
     "saving": "Saving...",
+    "backToList": "backToList",
     "cancel": "Cancel",
+    "viewMarriageCertificate": "view Marriage Certificate",
+    "viewAdoptionCertificate": "view Adoption Certificate",
+    "viewBirthCertificate": "view Birth Certificate",
+    "viewMedicalReport": "view Medical Report",
+    "yes": "Yes",
+    "no": "No",
     "deleteEmployee": "Delete Employee",
     "deleting": "Deleting...",
     "delete": "Delete",
     "edit": "Edit",
     "editEmployee": "Edit Employee",
-    "guaranteeLetters":"Documents",
+    "guaranteeLetters": "Documents",
     "page": "Page",
     "import": "Import",
     "importing": "Importing...",
@@ -21,7 +58,7 @@
     "allStatus": "All Status",
     "allTypes": "All Types",
     "clearFilters": "Clear filters",
-    "importCSV": "Import CSV",
+    "importCSV": "Import xlsx",
     "upload": "Upload",
     "analytics": "Analytics",
     "addEmployee": "Add Employee",
@@ -49,14 +86,18 @@
     "title": "Import Employees",
     "requiredColumns": "Required columns:",
     "optionalColumns": "Optional columns:",
-    "clickToUpload": "Click to upload CSV file",
+    "clickToUpload": "Click to upload xlsx file",
     "supportedFormat": "Supported format: .csv",
     "downloadTemplate": "Download template"
   },
   "guarantee": {
+    "confirmedDateEC": "Guarantor Confirmation Date (E.C)",
+     "confirmationDate": "Confirmation Date",
+    "confirmationDateHint": "Date when guarantor confirmed",
     "title": "Guarantee Information",
     "guarantors": "Guarantors",
     "guarantor": "Guarantor",
+     "guarantorConfirmDate": "Guarantor Confirmation Date",
     "guarantorName": "Guarantor Name",
     "guarantorNamePlaceholder": "Full name of guarantor",
     "guarantorJob": "Guarantor Job / Position",
@@ -66,13 +107,16 @@
     "guarantorOfficeAddress": "Guarantor Office Address",
     "addressPlaceholder": "Office address",
     "guaranteeLetterTitle": "Guarantee Letter Details",
-    "letterNumber": "Guarantee Letter Number",
+    "guaranteeLetter": "guaranteeLetter",
+    "sdtLetter": "sdtLetter",
+    "otherDocument": "otherDocument",
+    "letterNumber": "Guarantee Letter Number and date",
     "letterNumberPlaceholder": "Letter reference number",
     "letterDate": "Guarantee Letter Date",
     "letterDocument": "Guarantee Letter Document",
     "guaranteeLetterHint": "Select signed guarantee letter",
     "sdtLetterTitle": "SDT Letter Details",
-    "sdtLetterNumber": "SDT Letter Number",
+    "sdtLetterNumber": "SDT Letter Number and date",
     "sdtNumberPlaceholder": "SDT letter number",
     "sdtLetterDate": "SDT Letter Date",
     "sdtLetterDocument": "SDT Letter Document",
@@ -85,8 +129,9 @@
   "healthLegal": {
     "title": "Health & Legal Information",
     "healthTitle": "Health Information",
+    "criminalRecord": "criminal Record",
     "hasInjury": "Has any physical injury or disability?",
-    "physicalInjury":"physical Injury",
+    "physicalInjury": "physical Injury",
     "injuryDescription": "Injury/Disability Description",
     "injuryPlaceholder": "Please describe the injury, disability, or medical condition...",
     "legalTitle": "Legal Information",
@@ -160,6 +205,7 @@
     "emptyState": "No training records added. Click \"Add Training\" to add."
   },
   "nationality": {
+    "type": "type",
     "title": "Nationality Information",
     "acquired": "How was nationality acquired?",
     "byBirth": "By Birth",
@@ -182,10 +228,13 @@
     "kenyan": "Kenyan",
     "eritrean": "Eritrean",
     "somali": "Somali",
+
     "sudanese": "Sudanese",
     "other": "Other"
   },
   "family": {
+    "notes": "notes",
+    "adopted": "adopted",
     "spouse": "Spouse",
     "children": "Children",
     "parents": "Parents Information",
@@ -216,6 +265,7 @@
     "unemployed": "Unemployed",
     "business": "Own Business",
     "other": "Other",
+    "years": "years",
     "companyName": "Company Name",
     "companyAddress": "Company Address",
     "profilePicture": "Profile Picture",
@@ -297,7 +347,44 @@
     "onLeave": "On Leave",
     "ofActive": "of active"
   },
+    "documents": {
+        "otherDocuments": "Other Documents",
+    "otherDocsHint": "Upload supporting documents such as guarantee letters, employment letters, and other official documents.",
+    "employmentLetter": "Employment Letter",
+    "otherDocumentName": "Other document name...",
+    "customDocument": "Custom Document",
+    "documentName": "Document name...",
+    "fileInfo": "Accepted formats: PDF, JPG, PNG, DOC, DOCX. Max size: 5MB per file.",
+    "title": "Employee Documents",
+    "files": "files",
+    "noFiles": "No documents uploaded",
+    "hint": "Employee documents will appear here when uploaded",
+    "type": "Type",
+    "document": "Document",
+    "section": "Section",
+    "description": "Description",
+    "action": "Action"
+  },
   "employee": {
+
+       "departmentTransfers": "Department Transfer History",
+    "transfers": "transfers",
+    "transferDate": "Transfer Date",
+    "fromDepartment": "From Department",
+    "toDepartment": "To Department",
+    "approvedBy": "Approved By",
+    "noTransfers": "No department transfers recorded",
+    "transferHint": "When an employee changes departments, the transfer will be recorded here",
+    "current": "Current",
+    "historical": "Historical",
+    "noCurrentTransfer": "Employee is in their original department",
+    "noTransferHistory": "No department transfers found",
+    "from": "From",
+    "to": "To",
+    "currentDepartmentTransfer": "Current Department Transfer",
+    "activeTransfer": "Active Transfer",
+    "transferDetails": "Transfer Details",
+    "reasonForLeaving": "reason For Leaving",
     "currentEmployment": "Current Employment",
     "workLocationPlaceholder": "Head Office, Addis Ababa",
     "compensationAllowances": "💰 Compensation & Allowances",
@@ -409,12 +496,13 @@
     "fileSelected": "File selected",
     "readyToSave": "ready to save"
   },
-  "compensation":{
-"history": "Compensation History",
+  "compensation": {
+    "history": "Compensation Change History",
     "noHistory": "No compensation changes recorded",
     "historyHint": "When salary or allowances are updated, changes will appear here",
     "previousAmount": "Previous Amount",
-    "newAmount": "New Amount"
+    "newAmount": "New Amount",
+    "changes": "changes"
   },
   "payroll": {
     "title": "Payroll Report",
@@ -499,6 +587,17 @@
     "deleteConfirm": "Are you sure you want to delete this?",
     "noData": "No data found",
     "uploadSuccess": "File uploaded successfully",
-    "uploadError": "File upload failed"
+    "uploadError": "File upload failed",
+    "terminateConfirm": "Are you sure you want to terminate",
+    "terminateWarning": "This action will:",
+    "terminateStatus": "Set status to 'Terminated'",
+    "terminateDate": "Record termination date",
+    "terminateAccount": "Deactivate the account",
+    "terminateIrreversible": "⚠️ This action cannot be undone!",
+    "reactivateConfirm": "Reactivate",
+    "reactivateInfo": "This action will:",
+    "reactivateStatus": "Set status back to 'Active'",
+    "reactivateDate": "Clear termination dates",
+    "reactivateAccount": "Reactivate the account"
   }
 }

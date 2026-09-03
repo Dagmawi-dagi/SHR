@@ -1,4 +1,3 @@
-// employeeRoutes.js
 const express = require("express");
 const router = express.Router();
 const employeeController = require("../controllers/employeeController");
@@ -6,16 +5,93 @@ const { authMiddleware } = require("../middleware/authMiddleware");
 const {
   uploadSingleProfile,
   uploadDynamicDocument,
+  uploadSingleBalance,
 } = require("../middleware/uploadMiddleware");
 
 // ============================================================================
-// PROTECTED ROUTES
+// DEPARTMENT TRANSFER ROUTES - PUT THESE BEFORE authMiddleware
+// ============================================================================
+
+// employeeRoutes.js - Department Transfer Routes
+
+/**
+ * GET /api/employees/department-transfers
+ * Get all department transfers with filters
+ */
+router.get(
+  '/department-transfers/employee/:employeeId',
+  authMiddleware('admin', 'hr', 'finance', 'attendance'),
+  employeeController.getEmployeeDepartmentTransfers
+);
+
+/**
+ * POST /api/employees/department-transfers
+ * Create a new department transfer
+ */
+router.post(
+  '/department-transfers',
+  authMiddleware('admin', 'hr', 'finance', 'attendance'),
+  employeeController.createDepartmentTransfer
+);
+
+/**
+ * PUT /api/employees/department-transfers/:transferId/status
+ * Update transfer status (reverse or complete)
+ */
+router.put(
+  '/department-transfers/:transferId/status',
+  authMiddleware('admin', 'hr', 'finance', 'attendance'),
+  employeeController.updateTransferStatus
+);
+// ============================================================================
+// PROTECTED ROUTES - Apply authMiddleware to all remaining routes
 // ============================================================================
 router.use(authMiddleware());
 
 // ============================================================================
-// EMPLOYEE CRUD
+// THEN ALL OTHER ROUTES
 // ============================================================================
+
+// Summary endpoint (for dashboard cards)
+router.get('/stats/compliance/summary', employeeController.getComplianceSummary);
+router.get('/without-national-id', employeeController.getEmployeesWithoutNationalId);
+router.get("/degree-missing", employeeController.getDegreeMissing);
+router.get("/guarantee-status", employeeController.getGuaranteeStatus);
+router.get('/guarantee-age-distribution', employeeController.getGuaranteeAgeDistribution);
+
+// ============================================================================
+// GUARANTEE AGE DETAILS ROUTE
+// ============================================================================
+router.get(
+  '/guarantee-age-details',
+  authMiddleware('admin', 'hr', 'finance', 'attendance'),
+  employeeController.getGuaranteeAgeDetails
+);
+
+router.get(
+  '/departments/:departmentId/employees',
+  authMiddleware('admin', 'hr', 'finance', 'attendance'),
+  employeeController.getDepartmentEmployees
+);
+
+// ============================================================================
+// EMPLOYMENT TYPE EMPLOYEES (LAZY LOADING)
+// ============================================================================
+router.get(
+  '/employment-types/:type/employees',
+  authMiddleware('admin', 'hr', 'finance', 'attendance'),
+  employeeController.getTypeEmployees
+);
+
+// ========== TERMINATE & REACTIVATE ROUTES ==========
+router.post('/:id/terminate', authMiddleware("admin", "hr", "finance", "attendance"), 
+employeeController.terminateEmployee);
+
+router.post('/:id/reactivate', authMiddleware("admin", "hr", "finance", "attendance"), 
+employeeController.reactivateEmployee);
+
+router.get('/:id/termination-history', employeeController.getTerminationHistory);
+
 router.get(
   "/",
   authMiddleware("admin", "hr", "finance", "attendance"),
@@ -72,18 +148,13 @@ router.get(
   employeeController.getSalaryAnalysis,
 );
 router.get(
-  "/stats/compliance",
-  authMiddleware("admin", "hr", "finance", "attendance"),
-  employeeController.getDocumentCompliance,
-);
-router.get(
   "/stats/hiring-details",
   authMiddleware("admin", "hr", "finance", "attendance"),
   employeeController.getHiringDetails,
 );
 
 // ============================================================================
-// PROFILE PICTURE (Special handling - uses uploadSingleProfile)
+// PROFILE PICTURE
 // ============================================================================
 router.post(
   "/:id/profile-picture",
@@ -100,18 +171,6 @@ router.delete(
 // ============================================================================
 // GENERIC DOCUMENT UPLOAD - Handles ALL document types
 // ============================================================================
-// This single route handles:
-// - id_card, passport, national_id
-// - spouse_profile, marriage_certificate
-// - child_birth_certificate, child_medical_report, child_adoption_certificate, child_profile
-// - education_certificate, degree, certificate, cv, resume
-// - training_certificate
-// - experience_letter
-// - guarantee_letter, sdt_letter, guarantee_other
-// - parent_support_document
-// - naturalization_certificate
-// - health_document, legal_document
-// - contract, performance-review
 router.post(
   "/:id/documents/upload/:type",
   uploadDynamicDocument,
@@ -134,6 +193,7 @@ router.delete(
 router.post(
   "/import",
   authMiddleware("admin", "hr", "finance", "attendance"),
+  uploadSingleBalance,
   employeeController.importEmployees,
 );
 router.get(

@@ -1,13 +1,12 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
+import 'quill/dist/quill.snow.css';
 import App from './App.vue'
 import router from './router'
-
 // Import translations
 import en from './locales/en.json'
 import am from './locales/am.json'
-
 // Get saved language from localStorage or default to 'en'
 const savedLanguage = localStorage.getItem('language') || 'en'
 

@@ -1,13 +1,30 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, Role, Department, Employee,Position } = require('../models');
+const { User, Role, Department, Employee,Position,Group,StoreGroupRelation ,Store } = require('../models');
 const { Op, Sequelize } = require('sequelize');
+const userStoreService = require('../services/userStoreService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+
+
+// OR for case-insensitive check
+const isAdminOrChecker = (user) => {
+  if (!user) return false;
+  const role = (user.role || user.Role?.name)?.toLowerCase();
+  return ['admin', 'superadmin', 'checker'].includes(role);
+};
+
+const isAdmin = (user) => {
+  if (!user) return false;
+  const role = (user.role || user.Role?.name)?.toLowerCase();
+  return ['admin', 'superadmin'].includes(role);
+};
+
 
 async function getRoleIdFromName(roleName) {
   if (!roleName || roleName === 'all') return null;
@@ -110,12 +127,34 @@ exports.login = async (req, res) => {
           attributes: [
             'employeeId', 'employeeCode', 'firstName', 'lastName', 
             'middleName', 'profilePicture', 'profilePictureUrl', 'profilePicturePublicId',
-            'phoneNumber', 'hireDate', 'positionId', 'employmentType', 'employmentStatus',
-            'dateOfBirth', 'gender', 'maritalStatus', 'nationality',
-            'personalEmail', 'workEmail', 'emergencyContact',
-            'currentAddress', 'permanentAddress', 'basicSalary',
-            'bankAccount', 'workLocation', 'managerId'
+            'phoneNumber', 
+            'hireDateEC',
+            'hireDateGC',
+            'positionId', 
+            'employmentType', 
+            'employmentStatus',
+            'dateOfBirthEC',
+            'dateOfBirthGC',
+            'gender', 
+            'maritalStatus', 
+            'nationality',
+            'personalEmail', 
+            'workEmail', 
+            'emergencyContact',
+            'currentAddress', 
+            'permanentAddress', 
+            'basicSalary',
+            'bankAccount', 
+            'workLocation', 
+            'managerId'
           ]
+        },
+        // ✅ Get user's groups
+        {
+          model: Group,
+          as: 'groups',
+          through: { attributes: [] },
+          attributes: ['groupId', 'name', 'code', 'description', 'status']
         }
       ]
     });
@@ -139,6 +178,7 @@ exports.login = async (req, res) => {
     const roleName = user.Role?.name;
     const departmentName = user.Department?.name;
     const employee = user.employee;
+    const userGroups = user.groups || [];
     
     if (!roleName) {
       console.error('User has no role assigned:', user.userId);
@@ -146,6 +186,58 @@ exports.login = async (req, res) => {
         success: false, 
         error: 'User role not configured. Please contact administrator.' 
       });
+    }
+
+    // ✅ GET THE STORE FOR EACH GROUP
+    const groupsWithStores = [];
+    let assignedStore = null;
+    let assignedGroup = null;
+    let isAdmin = ['admin', 'Admin', 'superadmin', 'Superadmin'].includes(roleName);
+
+    if (!isAdmin && userGroups.length > 0) {
+      // For non-admin users, find their store
+      for (const group of userGroups) {
+        const storeGroupRelation = await StoreGroupRelation.findOne({
+          where: { groupId: group.groupId },
+          include: [
+            {
+              model: Store,
+              as: 'store',
+              attributes: ['storeId', 'name', 'code', 'location', 'status']
+            }
+          ]
+        });
+
+        if (storeGroupRelation && storeGroupRelation.store) {
+          // ✅ IMPORTANT: Store uses 'storeId' as the primary key
+          const storeData = {
+            id: storeGroupRelation.store.storeId,  // ✅ Use storeId as id
+            name: storeGroupRelation.store.name,
+            code: storeGroupRelation.store.code,
+            location: storeGroupRelation.store.location,
+            status: storeGroupRelation.store.status
+          };
+
+          const groupData = {
+            id: group.groupId,  // ✅ Group uses groupId as id
+            name: group.name,
+            code: group.code,
+            description: group.description,
+            status: group.status
+          };
+
+          groupsWithStores.push({
+            group: groupData,
+            store: storeData
+          });
+
+          // Use the first group-store relation as the primary one
+          if (!assignedStore) {
+            assignedStore = storeData;
+            assignedGroup = groupData;
+          }
+        }
+      }
     }
 
     // Generate tokens
@@ -190,7 +282,7 @@ exports.login = async (req, res) => {
       }
     }
 
-    // Build complete user response
+    // ✅ BUILD COMPLETE USER RESPONSE WITH GROUPS AND STORE
     const userResponse = {
       userId: user.userId,
       username: user.username,
@@ -214,7 +306,8 @@ exports.login = async (req, res) => {
       fullEmployeeName: employee?.firstName && employee?.lastName 
         ? `${employee.firstName} ${employee.lastName}` 
         : user.fullName,
-      dateOfBirth: employee?.dateOfBirth,
+      dateOfBirthEC: employee?.dateOfBirthEC,
+      dateOfBirthGC: employee?.dateOfBirthGC,
       gender: employee?.gender,
       maritalStatus: employee?.maritalStatus,
       nationality: employee?.nationality,
@@ -228,12 +321,39 @@ exports.login = async (req, res) => {
       permanentAddress: employee?.permanentAddress,
       positionId: employee?.positionId,
       managerId: employee?.managerId,
-      hireDate: employee?.hireDate,
+      hireDateEC: employee?.hireDateEC,
+      hireDateGC: employee?.hireDateGC,
       employmentType: employee?.employmentType,
       employmentStatus: employee?.employmentStatus,
       basicSalary: employee?.basicSalary,
       bankAccount: employee?.bankAccount,
-      workLocation: employee?.workLocation
+      workLocation: employee?.workLocation,
+      
+      // ✅ ===== GROUP & STORE ACCESS =====
+      isAdmin: isAdmin,
+      groups: userGroups.map(g => ({
+        id: g.groupId,  // ✅ Use groupId as id
+        name: g.name,
+        code: g.code,
+        description: g.description,
+        status: g.status
+      })),
+      assignedStore: assignedStore ? {
+        id: assignedStore.id,  // ✅ Store ID is now properly set
+        name: assignedStore.name,
+        code: assignedStore.code,
+        location: assignedStore.location,
+        status: assignedStore.status
+      } : null,
+      assignedGroup: assignedGroup ? {
+        id: assignedGroup.id,  // ✅ Group ID is now properly set
+        name: assignedGroup.name,
+        code: assignedGroup.code,
+        description: assignedGroup.description,
+        status: assignedGroup.status
+      } : null,
+      groupsWithStores: groupsWithStores,
+      hasAccess: isAdmin || (assignedStore && assignedGroup)
     };
 
     res.status(200).json({
@@ -316,10 +436,10 @@ exports.refreshToken = async (req, res) => {
 exports.getUsers = async (req, res) => {
   try {
     // Check admin privileges
-    if (req.user.role !== 'admin') {
+    if (!isAdminOrChecker(req.user)) {
       return res.status(403).json({ 
         success: false, 
-        error: 'Access denied. Admin privileges required.' 
+        error: 'Access denied. Admin or Checker privileges required.' 
       });
     }
 
@@ -330,7 +450,7 @@ exports.getUsers = async (req, res) => {
       sortBy = 'created_at',
       sortOrder = 'DESC',
       search = '',
-      role: roleName = 'all',  // Rename to roleName to avoid confusion
+      role: roleName = 'all',
       status = 'all',
       department = 'all',
       dateFrom = '',
@@ -343,13 +463,47 @@ exports.getUsers = async (req, res) => {
     // Build where condition
     let whereCondition = {};
     
+    // ✅ If user is NOT admin (only checker), prevent seeing admin users
+  const isAdminUser = isAdmin(req.user);
+    if (!isAdminUser) {
+      // Checker can see all users EXCEPT admins
+      // Get admin role IDs to exclude
+      const adminRoles = await Role.findAll({
+        where: { 
+          name: { [Op.in]: ['admin', 'Admin', 'superadmin', 'Superadmin'] }
+        },
+        attributes: ['roleId']
+      });
+      const adminRoleIds = adminRoles.map(r => r.roleId);
+      
+      if (adminRoleIds.length > 0) {
+        whereCondition.roleId = { [Op.notIn]: adminRoleIds };
+      }
+    }
+    
     // Handle role filter - convert role name to roleId
     if (roleName && roleName !== 'all') {
       const roleRecord = await Role.findOne({ where: { name: roleName } });
       if (roleRecord) {
+        // ✅ If checker is trying to filter for admin role, deny it
+        if (!isAdminUser) {
+          const adminRoles = await Role.findAll({
+            where: { 
+              name: { [Op.in]: ['admin', 'Admin', 'superadmin', 'Superadmin'] }
+            },
+            attributes: ['roleId']
+          });
+          const adminRoleIds = adminRoles.map(r => r.roleId);
+          
+          if (adminRoleIds.includes(roleRecord.roleId)) {
+            return res.status(403).json({
+              success: false,
+              error: 'Access denied. You cannot view admin users.'
+            });
+          }
+        }
         whereCondition.roleId = roleRecord.roleId;
       } else {
-        // If role name not found, return empty results
         return res.status(200).json({
           success: true,
           data: [],
@@ -415,7 +569,7 @@ exports.getUsers = async (req, res) => {
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
     const sortDirection = sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
-    console.log('Where condition:', JSON.stringify(whereCondition, null, 2)); // Debug log
+    console.log('Where condition:', JSON.stringify(whereCondition, null, 2));
 
     // Execute query
     const { count, rows: users } = await User.findAndCountAll({
@@ -446,7 +600,7 @@ exports.getUsers = async (req, res) => {
       distinct: true
     });
 
-    // Format response
+    // Format response - ✅ Add flag to indicate if user is admin
     const formattedUsers = users.map(user => ({
       userId: user.userId,
       username: user.username,
@@ -460,6 +614,7 @@ exports.getUsers = async (req, res) => {
       isActive: user.isActive,
       lastLogin: user.lastLogin,
       createdAt: user.created_at,
+      isAdminRole: ['admin', 'Admin', 'superadmin', 'Superadmin'].includes(user.Role?.name),
       employee: user.employee ? {
         employeeId: user.employee.employeeId,
         employeeCode: user.employee.employeeCode,
@@ -512,12 +667,13 @@ exports.getUsers = async (req, res) => {
 // ============================================================================
 exports.getUserStats = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Access denied. Admin privileges required.' 
-      });
-    }
+ // ✅ Using the helper
+if (!isAdminOrChecker(req.user)) {
+  return res.status(403).json({ 
+    success: false, 
+    error: 'Access denied. Admin or Checker privileges required.' 
+  });
+}
 
     // Parallel queries for better performance
     const [
@@ -639,9 +795,13 @@ exports.getUserStats = async (req, res) => {
 // ============================================================================
 exports.advancedSearchUsers = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+   // ✅ Using the helper
+if (!isAdminOrChecker(req.user)) {
+  return res.status(403).json({ 
+    success: false, 
+    error: 'Access denied. Admin or Checker privileges required.' 
+  });
+}
 
     const {
       q = '',
@@ -713,9 +873,12 @@ exports.advancedSearchUsers = async (req, res) => {
 // ============================================================================
 exports.bulkUpdateUsers = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+   if (!isAdminOrChecker(req.user)) {
+  return res.status(403).json({ 
+    success: false, 
+    error: 'Access denied. Admin or Checker privileges required.' 
+  });
+}
 
     const { userIds, updates } = req.body;
     
@@ -770,9 +933,12 @@ exports.bulkUpdateUsers = async (req, res) => {
 // ============================================================================
 exports.exportUsers = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
+    if (!isAdminOrChecker(req.user)) {
+  return res.status(403).json({ 
+    success: false, 
+    error: 'Access denied. Admin or Checker privileges required.' 
+  });
+}
 
     const {
       format = 'json',
@@ -886,7 +1052,7 @@ exports.getUserById = async (req, res) => {
           required: false,
           attributes: [
             'employeeId', 'employeeCode', 'firstName', 'lastName', 'middleName',
-            'phoneNumber', 'hireDate', 'positionId', 'employmentType', 'employmentStatus',
+            'phoneNumber', 'hireDateEC', 'positionId', 'employmentType', 'employmentStatus',
             'dateOfBirth', 'gender', 'maritalStatus', 'nationality',
             'personalEmail', 'workEmail', 'profilePictureUrl'
           ]
@@ -898,8 +1064,20 @@ exports.getUserById = async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    // Check permission (admin or own profile)
-    if (req.user.role !== 'admin' && req.user.userId !== user.userId) {
+    // ✅ Check if the target user is an admin
+    const isTargetAdmin = ['admin', 'Admin', 'superadmin', 'Superadmin'].includes(user.Role?.name);
+    const isAdminUser = isAdmin(req.user);
+
+    // ✅ If current user is NOT admin (checker) and target is admin, deny access
+    if (!isAdminUser && isTargetAdmin) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Access denied. You cannot view admin users.' 
+      });
+    }
+
+    // ✅ Allow admin/checker to view any user, or users to view themselves
+    if (!isAdminOrChecker(req.user) && req.user.userId !== user.userId) {
       return res.status(403).json({ 
         success: false, 
         error: 'Access denied. You can only view your own profile.' 
@@ -922,6 +1100,7 @@ exports.getUserById = async (req, res) => {
         isActive: user.isActive,
         lastLogin: user.lastLogin,
         createdAt: user.created_at,
+        isAdminRole: isTargetAdmin,
         employee: user.employee
       }
     });
@@ -1002,8 +1181,8 @@ exports.getAllPositions = async (req, res) => {
 // ============================================================================
 exports.getFilterOptions = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+ if (!isAdminOrChecker(req.user)) {
+      return res.status(403).json({ success: false, error: 'Access denied. Admin or Checker privileges required.' });
     }
 
     const [roles, departments, statuses, dateRange] = await Promise.all([
@@ -1174,13 +1353,59 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, roleId, departmentId, isActive, email } = req.body;
+    const { fullName, roleId, departmentId, isActive, email, username } = req.body;
+    
+    // ================================================================
+    // 1. CHECK PERMISSIONS
+    // ================================================================
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
+    const isAdmin = ['admin', 'Admin', 'superadmin', 'Superadmin', 'checker', 'Checker'].includes(userRole);
+    
+    if (!isAdmin && parseInt(id) !== parseInt(userId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. You can only update your own profile.'
+      });
+    }
 
+    // ================================================================
+    // 2. FIND THE USER
+    // ================================================================
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
+    // ================================================================
+    // 3. ✅ VALIDATE USERNAME BEFORE SAVING
+    // ================================================================
+    if (username !== undefined && username !== user.username) {
+      // Check if username is already taken
+      const existingUser = await User.findOne({ where: { username } });
+      if (existingUser) {
+        return res.status(400).json({ success: false, error: 'Username already taken' });
+      }
+      
+      // ✅ Validate username format (allow letters, numbers, underscores)
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Username can only contain letters, numbers, and underscores'
+        });
+      }
+      
+      if (username.length < 3 || username.length > 50) {
+        return res.status(400).json({
+          success: false,
+          error: 'Username must be between 3 and 50 characters'
+        });
+      }
+    }
+
+    // ================================================================
+    // 4. CHECK EMAIL
+    // ================================================================
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ where: { email } });
       if (existingEmail) {
@@ -1188,26 +1413,76 @@ exports.updateUser = async (req, res) => {
       }
     }
 
-    if (roleId) {
-      const roleExists = await Role.findByPk(roleId);
-      if (!roleExists) {
-        return res.status(400).json({ success: false, error: 'Invalid role ID' });
+    // ================================================================
+    // 5. RESTRICT ROLE/DEPARTMENT CHANGES FOR NON-ADMINS
+    // ================================================================
+    if (!isAdmin) {
+      if (roleId !== undefined && roleId !== user.roleId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. Only admins can change role.'
+        });
+      }
+      if (departmentId !== undefined && departmentId !== user.departmentId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. Only admins can change department.'
+        });
+      }
+      if (isActive !== undefined && isActive !== user.isActive) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. Only admins can change account status.'
+        });
+      }
+    } else {
+      if (roleId) {
+        const roleExists = await Role.findByPk(roleId);
+        if (!roleExists) {
+          return res.status(400).json({ success: false, error: 'Invalid role ID' });
+        }
       }
     }
 
+    // ================================================================
+    // 6. BUILD UPDATE DATA
+    // ================================================================
     const updateData = {};
+    
+    // Username - only if provided and valid
+    if (username !== undefined) updateData.username = username;
+    
+    // Full name - anyone can change their own full name
     if (fullName !== undefined) updateData.fullName = fullName;
+    
+    // Email - anyone can change their own email (if not taken)
     if (email !== undefined) updateData.email = email;
-    if (roleId !== undefined) updateData.roleId = roleId;
-    if (departmentId !== undefined) updateData.departmentId = departmentId;
-    if (isActive !== undefined) updateData.isActive = isActive;
+    
+    // Role, Department, Status - only admins can change these
+    if (isAdmin) {
+      if (roleId !== undefined) updateData.roleId = roleId;
+      if (departmentId !== undefined) updateData.departmentId = departmentId;
+      if (isActive !== undefined) updateData.isActive = isActive;
+    }
 
+    // ================================================================
+    // 7. UPDATE THE USER
+    // ================================================================
     await user.update(updateData);
 
+    // ================================================================
+    // 8. FETCH UPDATED USER
+    // ================================================================
     const updatedUser = await User.findByPk(id, {
-      include: [{ model: Role, attributes: ['name'] }, { model: Department, attributes: ['name'] }]
+      include: [
+        { model: Role, attributes: ['name'] },
+        { model: Department, attributes: ['name'] }
+      ]
     });
 
+    // ================================================================
+    // 9. RETURN RESPONSE
+    // ================================================================
     res.status(200).json({
       success: true,
       message: 'User updated successfully',
@@ -1223,9 +1498,23 @@ exports.updateUser = async (req, res) => {
         isActive: updatedUser.isActive
       }
     });
+    
   } catch (error) {
     console.error('Update user error:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
+    
+    // ✅ Handle validation errors better
+    if (error.name === 'SequelizeValidationError') {
+      const messages = error.errors.map(e => e.message);
+      return res.status(400).json({
+        success: false,
+        error: messages.join(', ')
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Server error' 
+    });
   }
 };
 
@@ -1322,5 +1611,615 @@ exports.toggleUserStatus = async (req, res) => {
   } catch (error) {
     console.error('Toggle user status error:', error);
     res.status(500).json({ success: false, error: 'Server error: ' + error.message });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Get stores for a user by username (with group info)
+ * POST /api/users/stores-by-username
+ */
+// backend/controllers/userController.js - getStoresByUsername
+
+/**
+ * Get stores for a user by username (with group info)
+ * POST /api/users/stores-by-username
+ */
+exports.getStoresByUsername = async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    console.log('========================================');
+    console.log('📥 getStoresByUsername called with:', { username });
+    console.log('========================================');
+
+    if (!username || !username.trim()) {
+      console.log('❌ Username is required');
+      return res.status(400).json({
+        success: false,
+        error: 'Username is required'
+      });
+    }
+
+    const result = await userStoreService.getUserStores(username.trim());
+
+    console.log('📊 Result from userStoreService:');
+    console.log('  success:', result.success);
+    console.log('  hasAccess:', result.data?.hasAccess);
+    console.log('  stores count:', result.data?.stores?.length);
+    
+    if (result.data?.stores) {
+      console.log('  Stores:');
+      result.data.stores.forEach((store, index) => {
+        console.log(`    Store ${index + 1}:`);
+        console.log(`      storeId: ${store.storeId}`);
+        console.log(`      name: ${store.name}`);
+        console.log(`      code: ${store.code}`);
+        console.log(`      groups: ${store.groups?.length || 0}`);
+        if (store.groups) {
+          store.groups.forEach((group, gIndex) => {
+            console.log(`        ${gIndex + 1}. ${group.groupName} (${group.groupCode})`);
+          });
+        }
+      });
+    }
+
+    if (!result.success) {
+      console.log('❌ Service returned error:', result.error);
+      return res.status(404).json({
+        success: false,
+        error: result.error || 'User not found'
+      });
+    }
+
+    // ✅ Format the stores to include storeId and groups
+    const formattedStores = (result.data.stores || []).map(store => ({
+      storeId: store.storeId,
+      name: store.name,
+      code: store.code,
+      location: store.location || 'N/A',
+      status: store.status || 'Active',
+      groups: (store.groups || []).map(group => ({
+        groupId: group.groupId,
+        groupName: group.groupName,
+        groupCode: group.groupCode,
+        description: group.description || '',
+        status: group.status || 'Active'
+      }))
+    }));
+
+    console.log('📤 Final formatted response:');
+    console.log('  stores count:', formattedStores.length);
+    formattedStores.forEach((store, index) => {
+      console.log(`  Store ${index + 1}:`);
+      console.log(`    storeId: ${store.storeId}`);
+      console.log(`    name: ${store.name}`);
+      console.log(`    groups: ${store.groups.length}`);
+    });
+    console.log('========================================');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: result.data.user,
+        stores: formattedStores,
+        hasAccess: result.data.hasAccess
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get stores by username error:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.log('========================================');
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+};
+/**
+ * Get user's groups for a specific store
+ * GET /api/users/stores/:storeId/groups
+ */
+exports.getUserStoreGroups = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const userId = req.user.userId;
+
+    const result = await userStoreService.getUserGroupsForStore(userId, storeId);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Get user store groups error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+};
+
+// backend/controllers/userController.js - Complete fixed loginWithStore
+// backend/controllers/userController.js - Complete fixed loginWithStore
+
+/**
+ * Login with store selection
+ * POST /api/users/login-with-store
+ */
+exports.loginWithStore = async (req, res) => {
+  try {
+    const { username, password, storeId, groupId } = req.body;
+
+    console.log('========================================');
+    console.log('🔐 loginWithStore request received:');
+    console.log('  username:', username);
+    console.log('  storeId:', storeId);
+    console.log('  groupId:', groupId);
+    console.log('========================================');
+
+    // ================================================================
+    // 1. VALIDATE REQUIRED FIELDS
+    // ================================================================
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username and password are required'
+      });
+    }
+
+    if (!storeId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Store selection is required'
+      });
+    }
+
+    // ================================================================
+    // 2. FIND USER WITH ALL RELATIONSHIPS
+    // ================================================================
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { username: username },
+          { email: username }
+        ],
+        isActive: true
+      },
+      include: [
+        { 
+          model: Role, 
+          attributes: ['roleId', 'name', 'description'] 
+        },
+        { 
+          model: Department, 
+          attributes: ['departmentId', 'name', 'code', 'description'] 
+        },
+        { 
+          model: Employee, 
+          as: 'employee',
+          required: false,
+          attributes: [
+            'employeeId', 'employeeCode', 'firstName', 'lastName', 
+            'middleName', 'profilePicture', 'profilePictureUrl', 
+            'profilePicturePublicId',
+            'phoneNumber', 'positionId', 'employmentStatus',
+            'hireDateEC', 'hireDateGC', 'dateOfBirthEC', 'dateOfBirthGC',
+            'gender', 'maritalStatus', 'nationality',
+            'personalEmail', 'workEmail', 'emergencyContact',
+            'currentAddress', 'permanentAddress', 'basicSalary',
+            'bankAccount', 'workLocation', 'managerId'
+          ]
+        },
+        {
+          model: Group,
+          as: 'groups',
+          through: { attributes: [] },
+          attributes: ['groupId', 'name', 'code', 'description', 'status']
+        }
+      ]
+    });
+
+    if (!user) {
+      console.log('❌ User not found:', username);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid username or password'
+      });
+    }
+
+    // ================================================================
+    // 3. VALIDATE PASSWORD
+    // ================================================================
+    const isValid = await user.validatePassword(password);
+    if (!isValid) {
+      console.log('❌ Invalid password for user:', username);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid username or password'
+      });
+    }
+
+    // ================================================================
+    // 4. CHECK IF USER IS ADMIN
+    // ================================================================
+    const roleName = user.Role?.name;
+    const isAdmin = ['admin', 'Admin', 'superadmin', 'Superadmin'].includes(roleName);
+    console.log('👑 isAdmin:', isAdmin, 'role:', roleName);
+
+    // ================================================================
+    // 5. VERIFY STORE ACCESS
+    // ================================================================
+    let store = null;
+    let selectedGroup = null;
+    let groupsForStore = [];
+
+    console.log('📤 Fetching store with ID:', storeId);
+
+    // ✅ FIX: Use 'storeId' as the model attribute (not 'id')
+    // The Store model has storeId as the primary key, not id
+    store = await Store.findByPk(storeId, {
+      attributes: ['storeId', 'name', 'code', 'location', 'status']
+    });
+
+    console.log('📦 Store fetched:', store ? {
+      storeId: store.storeId,
+      name: store.name,
+      code: store.code
+    } : 'Not found');
+
+    // ✅ CRITICAL: Get the store ID from the model
+    const actualStoreId = store ? store.storeId : null;
+    console.log('✅ actualStoreId:', actualStoreId);
+
+    if (isAdmin) {
+      // Admin can access any store
+      if (!store) {
+        console.log('❌ Store not found for admin:', storeId);
+        return res.status(404).json({
+          success: false,
+          error: 'Store not found'
+        });
+      }
+
+      // For admin, get all groups or use provided groupId
+      if (groupId) {
+        selectedGroup = await Group.findByPk(groupId, {
+          attributes: ['groupId', 'name', 'code', 'description', 'status']
+        });
+        if (selectedGroup) {
+          groupsForStore = [selectedGroup];
+        }
+      } else {
+        const storeGroups = await StoreGroupRelation.findAll({
+          where: { storeId: storeId },
+          include: [
+            {
+              model: Group,
+              as: 'group',
+              attributes: ['groupId', 'name', 'code', 'description', 'status']
+            }
+          ]
+        });
+        groupsForStore = storeGroups.map(sg => sg.group).filter(g => g);
+        if (groupsForStore.length > 0) {
+          selectedGroup = groupsForStore[0];
+        }
+      }
+    } else {
+      // Non-admin: Verify user has access to the selected store
+      console.log('📤 Verifying store access for user:', user.userId, 'store:', storeId);
+      const accessResult = await userStoreService.verifyStoreAccess(user.userId, storeId);
+      
+      console.log('📊 verifyStoreAccess result:', {
+        success: accessResult.success,
+        hasAccess: accessResult.hasAccess,
+        groupsCount: accessResult.groups?.length || 0
+      });
+
+      if (!accessResult.success || !accessResult.hasAccess) {
+        return res.status(403).json({
+          success: false,
+          error: 'You do not have access to this store'
+        });
+      }
+
+      groupsForStore = accessResult.groups || [];
+
+      if (!store) {
+        console.log('❌ Store not found for non-admin:', storeId);
+        return res.status(404).json({
+          success: false,
+          error: 'Store not found'
+        });
+      }
+
+      // Determine which group to use
+      if (groupId) {
+        selectedGroup = groupsForStore.find(g => {
+          const gId = g.id || g.groupId;
+          return gId === parseInt(groupId);
+        });
+        
+        if (!selectedGroup) {
+          console.error('❌ Group not found in store access:', { 
+            groupId, 
+            availableGroups: groupsForStore.map(g => g.id || g.groupId) 
+          });
+          return res.status(403).json({
+            success: false,
+            error: 'You do not have access to this group in the selected store'
+          });
+        }
+      } else {
+        selectedGroup = groupsForStore[0] || null;
+      }
+
+      if (!selectedGroup) {
+        return res.status(403).json({
+          success: false,
+          error: 'No group assigned for this store'
+        });
+      }
+    }
+
+    // ================================================================
+    // 6. GET THE ACTUAL IDs
+    // ================================================================
+    const actualGroupId = selectedGroup?.id || selectedGroup?.groupId || null;
+    const actualGroupName = selectedGroup?.name || null;
+    const actualGroupCode = selectedGroup?.code || null;
+
+    console.log('✅ Final selected IDs:', {
+      storeId: actualStoreId,
+      groupId: actualGroupId,
+      storeName: store?.name,
+      groupName: actualGroupName
+    });
+
+    // ================================================================
+    // 7. GENERATE JWT TOKENS
+    // ================================================================
+    const token = jwt.sign(
+      {
+        userId: user.userId,
+        username: user.username,
+        role: roleName,
+        roleId: user.roleId,
+        departmentId: user.departmentId,
+        employeeId: user.employee?.employeeId,
+        storeId: actualStoreId,
+        groupId: actualGroupId,
+        isAdmin: isAdmin
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '24h' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.userId },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    await user.update({ lastLogin: new Date() });
+
+    // ================================================================
+    // 8. BUILD PROFILE PICTURE URL
+    // ================================================================
+    const employee = user.employee;
+    let profilePictureUrl = null;
+    if (employee?.profilePictureUrl) {
+      if (employee.profilePictureUrl.startsWith('http://') || 
+          employee.profilePictureUrl.startsWith('https://')) {
+        profilePictureUrl = employee.profilePictureUrl;
+      } else {
+        const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+        profilePictureUrl = `${baseUrl}${employee.profilePictureUrl}`;
+      }
+    } else if (employee?.profilePicture) {
+      if (employee.profilePicture.startsWith('http://') || 
+          employee.profilePicture.startsWith('https://')) {
+        profilePictureUrl = employee.profilePicture;
+      } else {
+        const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+        profilePictureUrl = `${baseUrl}${employee.profilePicture}`;
+      }
+    }
+
+    // ================================================================
+    // 9. BUILD USER RESPONSE WITH COMPLETE DATA
+    // ================================================================
+    const userResponse = {
+      userId: user.userId,
+      username: user.username,
+      email: user.email,
+      fullName: user.fullName,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      createdAt: user.created_at,
+      role: roleName,
+      roleId: user.roleId,
+      roleDescription: user.Role?.description,
+      departmentId: user.departmentId,
+      departmentName: user.Department?.name,
+      departmentCode: user.Department?.code,
+      departmentDescription: user.Department?.description,
+      employeeId: employee?.employeeId,
+      employeeCode: employee?.employeeCode,
+      firstName: employee?.firstName,
+      lastName: employee?.lastName,
+      middleName: employee?.middleName,
+      fullEmployeeName: employee?.firstName && employee?.lastName 
+        ? `${employee.firstName} ${employee.lastName}` 
+        : user.fullName,
+      dateOfBirthEC: employee?.dateOfBirthEC,
+      dateOfBirthGC: employee?.dateOfBirthGC,
+      gender: employee?.gender,
+      maritalStatus: employee?.maritalStatus,
+      nationality: employee?.nationality,
+      profilePicture: profilePictureUrl,
+      profilePicturePublicId: employee?.profilePicturePublicId || null,
+      phoneNumber: employee?.phoneNumber,
+      personalEmail: employee?.personalEmail,
+      workEmail: employee?.workEmail,
+      emergencyContact: employee?.emergencyContact,
+      currentAddress: employee?.currentAddress,
+      permanentAddress: employee?.permanentAddress,
+      positionId: employee?.positionId,
+      managerId: employee?.managerId,
+      hireDateEC: employee?.hireDateEC,
+      hireDateGC: employee?.hireDateGC,
+      employmentType: employee?.employmentType,
+      employmentStatus: employee?.employmentStatus,
+      basicSalary: employee?.basicSalary,
+      bankAccount: employee?.bankAccount,
+      workLocation: employee?.workLocation,
+      
+      // ✅ ===== Store and Group Fields - FIXED =====
+      // ✅ CRITICAL: These must have values
+      storeId: actualStoreId,
+      storeName: store?.name || null,
+      storeCode: store?.code || null,
+      groupId: actualGroupId,
+      groupName: actualGroupName,
+      groupCode: actualGroupCode,
+      
+      // ✅ ===== Current Store/Group - FIXED =====
+      currentStore: store ? {
+        id: actualStoreId,  // ✅ This must be a number, not undefined!
+        name: store.name,
+        code: store.code,
+        location: store.location || '',
+        status: store.status || 'Active'
+      } : null,
+      currentGroup: selectedGroup ? {
+        id: actualGroupId,
+        name: actualGroupName,
+        code: actualGroupCode,
+        description: selectedGroup.description || '',
+        status: selectedGroup.status || 'Active'
+      } : null,
+      
+      // ✅ ===== Admin Flag =====
+      isAdmin: isAdmin,
+      
+      // ✅ ===== All Groups for this Store =====
+      groupsForStore: groupsForStore.map(g => ({
+        id: g.id || g.groupId,
+        name: g.name,
+        code: g.code,
+        description: g.description || '',
+        status: g.status || 'Active'
+      })),
+      
+      // ✅ ===== All User Groups =====
+      groups: user.groups ? user.groups.map(g => ({
+        id: g.groupId,
+        name: g.name,
+        code: g.code,
+        description: g.description,
+        status: g.status
+      })) : [],
+      
+      // ✅ ===== User's Stores =====
+      stores: store ? [{
+        id: actualStoreId,
+        name: store.name,
+        code: store.code,
+        location: store.location || '',
+        status: store.status || 'Active'
+      }] : [],
+      
+      hasMultipleStores: false,
+      
+      // ✅ ===== Legacy fields for compatibility =====
+      assignedStore: store ? {
+        id: actualStoreId,
+        name: store.name,
+        code: store.code,
+        location: store.location || ''
+      } : null,
+      assignedGroup: selectedGroup ? {
+        id: actualGroupId,
+        name: actualGroupName,
+        code: actualGroupCode
+      } : null,
+      
+      hasAccess: isAdmin || (store && actualGroupId)
+    };
+
+    // ================================================================
+    // 10. LOG THE FINAL RESPONSE
+    // ================================================================
+    console.log('========================================');
+    console.log('📤 FINAL USER RESPONSE DATA:');
+    console.log('  userId:', userResponse.userId);
+    console.log('  username:', userResponse.username);
+    console.log('  storeId (direct):', userResponse.storeId);
+    console.log('  groupId (direct):', userResponse.groupId);
+    console.log('  storeName:', userResponse.storeName);
+    console.log('  groupName:', userResponse.groupName);
+    console.log('  currentStore:', JSON.stringify(userResponse.currentStore, null, 2));
+    console.log('  currentGroup:', JSON.stringify(userResponse.currentGroup, null, 2));
+    console.log('  assignedStore:', JSON.stringify(userResponse.assignedStore, null, 2));
+    console.log('  assignedGroup:', JSON.stringify(userResponse.assignedGroup, null, 2));
+    console.log('  isAdmin:', userResponse.isAdmin);
+    console.log('========================================');
+
+    console.log('✅ LoginWithStore successful for user:', user.username);
+    console.log('📦 Store ID sent:', actualStoreId, 'Group ID sent:', actualGroupId);
+
+    res.status(200).json({
+      success: true,
+      token,
+      refreshToken,
+      user: userResponse
+    });
+
+  } catch (error) {
+    console.error('❌ Login with store error:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Server error during login'
+    });
   }
 };

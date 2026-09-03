@@ -40,6 +40,10 @@ const uploadDirs = [
   "uploads/documents/health",
   "uploads/documents/legal",
   
+  // ========== NEW: OTHER DOCUMENTS ==========
+  "uploads/documents/employment_letters",  // Employment Letters
+  "uploads/documents/other_documents",     // Other & Custom Documents
+  
   // Legacy document folders (keep for existing files)
   "uploads/documents/id_cards",
   "uploads/documents/cv_resumes",
@@ -48,8 +52,19 @@ const uploadDirs = [
   // Attendance
   "uploads/attendance/",
   
+  // Item specifications
+  "uploads/items/specifications",
+
+  // Store Balance
+  "uploads/balances/",
+  "uploads/balances/imports",
+  "uploads/balances/exports",
+
   // Temp uploads
-  "uploads/temp/"
+  "uploads/temp/",
+
+  // ========== NEW: BACKUP DIRECTORY ==========
+  "uploads/backups/"
 ];
 
 // Serve static files from uploads directory
@@ -72,15 +87,28 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const leaveRoutes = require("./routes/leaveRoutes");
 const payrollRoutes = require("./routes/payrollRoutes");
 const penalityRoutes = require("./routes/penalityRoutes");
-
+const storeRoutes  = require("./routes/storeRoutes");
 const penaltySummaryRoutes = require('./routes/penaltySummaryRoutes');
-const letterTemplateRoutes = require("./routes/letterTemplateRoutes");
+const itemRoutes=require('./routes/itemRoutes');
+const groupRoutes = require('./routes/groupRoutes');
+const storeToStoreRelationshipRoutes = require('./routes/storeToStoreRelationshipRoutes');
+const itemRequestRoutes = require('./routes/itemRequestRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const auditRoutes = require('./routes/auditRoutes');
+const balanceRoutes = require('./routes/balanceRoutes');
+const itemCostRoutes = require('./routes/itemCostRoutes');
+const StoreDashboardRoutes = require('./routes/StoreDashboardRoutes');
+const checkerDashboardRoutes=require('./routes/checkerDashboardRoutes');
+const costDashboardRoutes = require('./routes/costDashboardRoutes');
+const stockCardRoutes = require('./routes/stockCardRoutes');
+const finishedGoodRoutes = require('./routes/finishedGoodRoutes');
+const convertedBalanceRoutes = require('./routes/convertedBalanceRoutes');
 
-// Charity module 
-const charityTeamRoutes        = require("./routes/charity/teamRoutes");
-const charityBeneficiaryRoutes = require("./routes/charity/beneficiaryRoutes");
-const charitySettingRoutes     = require("./routes/charity/settingRoutes");
-const charityDashboardRoutes   = require("./routes/charity/dashboardRoutes");
+const formulationRoutes = require('./routes/formulationRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+
+// ========== NEW: BACKUP ROUTES ==========
+const backupRoutes = require("./routes/backupRoutes");
 
 // ============================================================================
 // GLOBAL MIDDLEWARE
@@ -125,13 +153,25 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/penalties", penalityRoutes);
 app.use('/api/penalty-summary', penaltySummaryRoutes);
-app.use("/api/letter-templates", letterTemplateRoutes);
-
-// Charity Module Routes
-app.use("/api/charity/teams",        charityTeamRoutes);
-app.use("/api/charity/beneficiaries",charityBeneficiaryRoutes);
-app.use("/api/charity/settings",     charitySettingRoutes);
-app.use("/api/charity/dashboard",    charityDashboardRoutes);
+app.use('/api/items', itemRoutes);
+app.use('/api/stores', storeRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/store-to-store-relationships', storeToStoreRelationshipRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/item-requests', itemRequestRoutes);
+app.use('/api/balances', balanceRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/item-costs', itemCostRoutes);
+app.use('/api/store-dashboard', StoreDashboardRoutes);
+app.use('/api/cost-dashboard', costDashboardRoutes);
+app.use('/api/checker-dashboard', checkerDashboardRoutes);
+app.use('/api/stock-card', stockCardRoutes);
+app.use('/api/finished-goods', finishedGoodRoutes);
+app.use('/api/formulations', formulationRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/converted-balances', convertedBalanceRoutes);
+// ========== NEW: BACKUP ROUTES ==========
+app.use("/api/backup", backupRoutes);
 
 // ============================================================================
 // HEALTH CHECK ENDPOINT

@@ -1,10 +1,9 @@
 <template>
   <div class="employee-create">
-   
-
     <CreateHeader
-  :t="t" 
-     @import-click="openImportModal" />
+      :t="t" 
+      @import-click="openImportModal" 
+    />
     
     <form @submit.prevent="saveAllData" class="employee-form">
       
@@ -12,7 +11,7 @@
         :form="form"
         :errors="errors"
         :countries="countries"
-         :t="t" 
+        :t="t" 
         :profile-preview="profilePreview"
         @update:form="updateForm"
         @update:profileFile="updateProfileFile"
@@ -24,7 +23,7 @@
 
       <CurrentCompanyInfoForm 
         :current-company="form.currentCompany"
-            :t="t" 
+        :t="t" 
         @update:currentCompany="updateCurrentCompany"
       />
       
@@ -32,7 +31,7 @@
         :form="form"
         :work-experience="form.workExperience"
         :errors="errors"
-            :t="t" 
+        :t="t" 
         :departments="departments"
         :positions="positions"
         :employees="employeeList"
@@ -47,7 +46,7 @@
         :spouse-info="form.spouseInfo"
         :children="form.children"
         :parents-info="form.parentsInfo"
-            :t="t" 
+        :t="t" 
         @update:spouseInfo="updateSpouseInfo"
         @update:children="updateChildren"
         @update:parentsInfo="updateParentsInfo"
@@ -58,28 +57,28 @@
       <EducationForm 
         :education="form.education"
         @update:education="updateEducation"
-            :t="t" 
+        :t="t" 
         @upload-document="openDocumentUpload"
       />
       
       <TrainingForm 
         :training="form.training"
         @update:training="updateTraining"
-            :t="t" 
+        :t="t" 
         @upload-document="openDocumentUpload"
       />
       
       <LanguageSkillsForm 
         :language-skills="form.languageSkills"
         :other-skills="form.otherSkills"
-            :t="t" 
+        :t="t" 
         @update:languageSkills="updateLanguageSkills"
         @update:otherSkills="updateOtherSkills"
       />
       
       <NationalityForm 
         :nationality-acquisition="form.nationalityAcquisition"
-            :t="t" 
+        :t="t" 
         @update:nationalityAcquisition="updateNationalityAcquisition"
         @upload-document="openDocumentUpload"
       />
@@ -87,14 +86,14 @@
       <HealthLegalForm 
         :health-info="form.healthInfo"
         :legal-info="form.legalInfo"
-            :t="t" 
+        :t="t" 
         @update:healthInfo="updateHealthInfo"
         @update:legalInfo="updateLegalInfo"
       />
       
       <GuaranteeInfoForm 
         :guarantee-info="form.guaranteeInfo"
-            :t="t" 
+        :t="t" 
         @update:guaranteeInfo="updateGuaranteeInfo"
         @file-selected="addToast"
         @upload-document="openDocumentUpload"
@@ -105,10 +104,18 @@
         :emergency-address="form.emergencyContactAddress"
         :bank="bankAccount"
         :ethiopian-banks="ethiopianBanks"
-            :t="t" 
+        :t="t" 
         @update:emergency="updateEmergencyContact"
         @update:emergencyAddress="updateEmergencyAddress"
         @update:bank="updateBankAccount"
+      />
+
+      <!-- Scanned Documents Form -->
+      <ScannedDocumentsForm 
+        ref="scannedDocsRef"
+        :t="t" 
+        @file-selected="addToast"
+        @update:documents="updateScannedDocuments"
       />
       
       <div class="form-actions">
@@ -119,25 +126,25 @@
       </div>
     </form>
 
-    <!-- Rest of your modals -->
+    <!-- Modals -->
     <DocumentUploadModal 
       v-if="showDocumentModal"
       :context="documentUploadContext"
-          :t="t" 
+      :t="t" 
       @close="showDocumentModal = false"
       @uploaded="handleDocumentUploaded"
     />
 
     <ImportModal 
       v-model:show="showImportModal"
-          :t="t" 
+      :t="t" 
       @import="handleImport"
       @toast="addToast"
     />
 
     <ToastContainer 
       :toasts="toasts"
-          :t="t" 
+      :t="t" 
       @remove-toast="removeToast"
     />
   </div>
@@ -149,16 +156,7 @@ import { useRouter, useRoute } from 'vue-router'
 import EmployeesService from '@/stores/employee'
 import UsersService from '@/stores/users'
 import CreateHeader from './components/employeeCreate/CreateHeader.vue'
-
-
-
-
-
-
-
-
-
-import { useI18n } from 'vue-i18n'  // ← ADD THIS LINE
+import { useI18n } from 'vue-i18n'
 import BasicInfoForm from './components/employeeCreate/BasicInfoForm.vue'
 import EmploymentForm from './components/employeeCreate/EmploymentForm.vue'
 import FamilyInfoForm from './components/employeeCreate/FamilyInfoForm.vue'
@@ -173,20 +171,29 @@ import ImportModal from './components/employeeCreate/ImportModal.vue'
 import ToastContainer from './components/employeeCreate/ToastContainer.vue'
 import DocumentUploadModal from './components/employeeCreate/DocumentUploadModal.vue'
 import GuaranteeInfoForm from './components/employeeCreate/GuaranteeInfoForm.vue'
-
-
+import ScannedDocumentsForm from './components/employeeCreate/ScannedDocumentsForm.vue'
 
 const { t, locale } = useI18n()
 
+// Scanned Documents Reference
+const scannedDocsRef = ref(null)
 
+// Scanned Documents State
+const scannedDocuments = ref({
+  guaranteeLetter: null,
+  employmentLetter: null,
+  other: null,
+  custom: []
+})
+
+// Update scanned documents from child component
+const updateScannedDocuments = (docs) => {
+  // docs is an array of { type, name, file }
+  scannedDocuments.value = docs
+}
 
 // Language state
 const currentLanguage = ref(locale.value)
-
-
-
-
-
 
 const router = useRouter()
 const route = useRoute()
@@ -210,17 +217,6 @@ const emergencyContact = reactive({
   alternatePhone: ''
 })
 
-// Toggle language function
-const toggleLanguage = () => {
-  const newLang = currentLanguage.value === 'en' ? 'am' : 'en'
-  locale.value = newLang
-  currentLanguage.value = newLang
-  localStorage.setItem('language', newLang)
-  // Optional: show a toast notification
-  addToast(newLang === 'en' ? 'Switched to English' : 'ወደ አማርኛ ተቀይሯል', 'success')
-}
-
-
 const bankAccount = reactive({
   bankName: '',
   accountNumber: '',
@@ -237,7 +233,15 @@ const form = ref({
   personalEmail: '',
   fullNameEnglish: '',
   phone: '',
+  
+  hireDateEC: '',
+  dateOfBirthEC: '',
+  confirmationDateEC: '',
+  terminationDateEC: '',
+  
   dob: '',
+  hireDate: '',
+  
   gender: '',
   maritalStatus: '',
   nationality: '',
@@ -246,7 +250,6 @@ const form = ref({
   positionId: null,
   managerId: null,
   employmentType: '',
-  hireDate: '',
   salary: '',
   basicSalary: '',
   housingAllowance: '',
@@ -287,7 +290,7 @@ const form = ref({
   spouseInfo: {
     tinNumber: '',
     fullName: '',
-    dateOfBirth: '',
+    dateOfBirthEC: '',
     jobStatus: '',
     companyName: '',
     companyAddress: '',
@@ -423,21 +426,28 @@ const updateLegalInfo = (newLegal) => {
   form.value.legalInfo = newLegal
 }
 
+// Save all data
 const saveAllData = async () => {
+  // console.log('🔍 VALIDATION DEBUG - Form values:', {
+  //   firstName: form.value.firstName,
+  //   lastName: form.value.lastName,
+  //   email: form.value.email,
+  //   phone: form.value.phone,
+  //   departmentId: form.value.departmentId,
+  //   positionId: form.value.positionId,
+  //   employmentType: form.value.employmentType,
+  //   hireDateEC: form.value.hireDateEC,
+  //   dateOfBirthEC: form.value.dateOfBirthEC
+  // })
+  
   if (!validateForm()) {
     addToast('Please fix validation errors', 'error')
     return
   }
   
-  console.log('=== SAVING EMPLOYEE DATA ===')
-  console.log('Required fields:', {
-    firstName: form.value.firstName,
-    lastName: form.value.lastName,
-    departmentId: form.value.departmentId,
-    positionId: form.value.positionId,
-    employmentType: form.value.employmentType,
-    hireDate: form.value.hireDate
-  })
+  // console.log('=== SAVING EMPLOYEE DATA ===')
+  // console.log('EC Dates - Hire:', form.value.hireDateEC)
+  // console.log('EC Dates - DOB:', form.value.dateOfBirthEC)
   
   isSubmitting.value = true
   
@@ -450,22 +460,29 @@ const saveAllData = async () => {
       email: form.value.email?.trim(),
       personalEmail: form.value.personalEmail?.trim() || null,
       phone: form.value.phone?.trim(),
-      dob: form.value.dob || null,
+      
+      hireDateEC: form.value.hireDateEC || null,
+      dateOfBirthEC: form.value.dateOfBirthEC || null,
+      confirmationDateEC: form.value.confirmationDateEC || null,
+      terminationDateEC: form.value.terminationDateEC || null,
+      
       gender: form.value.gender || null,
       maritalStatus: form.value.maritalStatus || null,
       nationality: form.value.nationality || null,
       nationalId: form.value.nationalId || null,
+      
       departmentId: form.value.departmentId ? parseInt(form.value.departmentId) : null,
       positionId: form.value.positionId ? parseInt(form.value.positionId) : null,
       managerId: form.value.managerId ? parseInt(form.value.managerId) : null,
       employmentType: form.value.employmentType,
-      hireDate: form.value.hireDate,
+      workLocation: form.value.workLocation?.trim() || null,
+      
       basicSalary: form.value.basicSalary,
       housingAllowance: parseFloat(form.value.housingAllowance) || 0,
       positionAllowance: parseFloat(form.value.positionAllowance) || 0,
       transportAllowance: parseFloat(form.value.transportAllowance) || 0,
       mobileAllowance: parseFloat(form.value.mobileAllowance) || 0,
-      workLocation: form.value.workLocation?.trim() || null,
+      
       currentCompany: form.value.currentCompany,
       birthPlace: form.value.birthPlace,
       currentAddress: form.value.currentAddress,
@@ -488,7 +505,10 @@ const saveAllData = async () => {
       bankAccount: JSON.stringify(bankAccount)
     }
     
-    console.log('Sending employeeData:', employeeData)
+    // console.log('Sending EC Dates to backend:', {
+    //   hireDateEC: employeeData.hireDateEC,
+    //   dateOfBirthEC: employeeData.dateOfBirthEC
+    // })
     
     let employeeId
   
@@ -499,7 +519,7 @@ const saveAllData = async () => {
       addToast('Employee updated successfully!', 'success')
     } else {
       const result = await EmployeesService.createEmployee(employeeData)
-      console.log('Create result:', result)
+      // console.log('Create result:', result)
       if (!result.success) throw new Error(result.error || 'Failed to create employee')
       employeeId = result.data.id
       addToast('Employee created successfully!', 'success')
@@ -519,8 +539,9 @@ const saveAllData = async () => {
   }
 }
 
+// Upload all documents
 const uploadAllDocuments = async (employeeId) => {
-  console.log('Uploading documents for employee:', employeeId)
+  // console.log('Uploading documents for employee:', employeeId)
   
   // 1. Profile Picture
   if (profileFile.value) {
@@ -635,18 +656,63 @@ const uploadAllDocuments = async (employeeId) => {
   }
 
   // 11. Health Document
-if (form.value.healthInfo?.documentFile) {
-  await EmployeesService.uploadEmployeeDocument(
-    employeeId, form.value.healthInfo.documentFile, 'health_document'
-  )
-}
+  if (form.value.healthInfo?.documentFile) {
+    await EmployeesService.uploadEmployeeDocument(
+      employeeId, form.value.healthInfo.documentFile, 'health_document'
+    )
+  }
 
-// 12. Legal Document
-if (form.value.legalInfo?.documentFile) {
-  await EmployeesService.uploadEmployeeDocument(
-    employeeId, form.value.legalInfo.documentFile, 'legal_document'
-  )
-}
+  // 12. Legal Document
+  if (form.value.legalInfo?.documentFile) {
+    await EmployeesService.uploadEmployeeDocument(
+      employeeId, form.value.legalInfo.documentFile, 'legal_document'
+    )
+  }
+
+  // ========== 13. SCANNED DOCUMENTS (NEW) ==========
+  // Get documents from the ScannedDocumentsForm component
+  if (scannedDocsRef.value) {
+    const allDocs = scannedDocsRef.value.getAllDocuments()
+    
+    if (allDocs && allDocs.length > 0) {
+      // console.log('Uploading scanned documents:', allDocs.length)
+      
+      for (let i = 0; i < allDocs.length; i++) {
+        const doc = allDocs[i]
+        if (doc.file) {
+          try {
+            // Determine document type for upload
+            let docType = 'other_document'
+            
+            // Map to specific types if available
+            if (doc.type === 'guaranteeLetter') {
+              docType = 'guarantee_letter'
+            } else if (doc.type === 'employmentLetter') {
+              docType = 'employment_letter'
+            } else if (doc.type === 'other') {
+              docType = 'other_document'
+            } else if (doc.type === 'custom') {
+              docType = 'other_document'
+            }
+            
+            await EmployeesService.uploadEmployeeDocument(
+              employeeId,
+              doc.file,
+              docType,
+              { 
+                index: i,
+                description: doc.name || 'Other Document'
+              }
+            )
+            
+            // console.log(`✅ Uploaded: ${doc.name || doc.type} (${docType})`)
+          } catch (error) {
+            console.error(`❌ Failed to upload document: ${doc.name}`, error)
+          }
+        }
+      }
+    }
+  }
 }
 
 const openDocumentUpload = (context) => {
@@ -655,8 +721,6 @@ const openDocumentUpload = (context) => {
 }
 
 const handleDocumentUploaded = async (result) => {
-  const { type, index, field, documentId, fileUrl } = documentUploadContext.value
-  
   addToast('Document uploaded successfully', 'success')
   showDocumentModal.value = false
 }
@@ -667,6 +731,10 @@ const validateForm = () => {
   if (!form.value.lastName?.trim()) newErrors.lastName = 'Last name is required'
   if (!form.value.email?.trim()) newErrors.email = 'Email is required'
   if (!form.value.phone?.trim()) newErrors.phone = 'Phone is required'
+  if (!form.value.departmentId) newErrors.departmentId = 'Department is required'
+  if (!form.value.positionId) newErrors.positionId = 'Position is required'
+  if (!form.value.employmentType) newErrors.employmentType = 'Employment type is required'
+  if (!form.value.hireDateEC) newErrors.hireDateEC = 'Hire date is required'
   
   errors.value = newErrors
   return Object.keys(newErrors).length === 0
@@ -747,6 +815,7 @@ onMounted(() => {
   loadManagers()
 })
 </script>
+
 
 <style scoped>
 

@@ -19,7 +19,8 @@ export interface BirthPlace {
 export interface SpouseInfo {
   tinNumber?: string
   fullName?: string
-  dateOfBirth?: string
+  dateOfBirthEC?: string      // Changed from dateOfBirth
+  dateOfBirthGC?: string       // Gregorian version (optional)
   jobStatus?: string
   companyName?: string
   companyAddress?: string
@@ -31,7 +32,8 @@ export interface SpouseInfo {
 
 export interface Child {
   name: string
-  dateOfBirth: string
+  dateOfBirthEC?: string      // Changed from dateOfBirth
+  dateOfBirthGC?: string       // Gregorian version (optional)
   hasMedicalCondition: boolean
   medicalConditionNotes?: string
   isAdopted: boolean
@@ -50,35 +52,40 @@ export interface Education {
   level: string
   institutionName: string
   institutionAddress: string
-  startDate: string
-  endDate: string
+  startDateEC?: string        // Changed from startDate
+  startDateGC?: string         // Gregorian version (optional)
+  endDateEC?: string          // Changed from endDate
+  endDateGC?: string           // Gregorian version (optional)
   isCurrent: boolean
   certificateUrl?: string
   certificateDocumentId?: string
 }
-
 export interface Training {
   trainingName: string
   institutionName: string
   institutionAddress: string
-  startDate: string
-  endDate: string
+  startDateEC?: string        // Changed from startDate
+  startDateGC?: string         // Gregorian version (optional)
+  endDateEC?: string          // Changed from endDate
+  endDateGC?: string           // Gregorian version (optional)
   certificateUrl?: string
   certificateDocumentId?: string
 }
-
 export interface WorkExperience {
   position: string
   companyName: string
   companyTin?: string
   companyType?: string
   companyAddress: string
-  startDate: string
-  endDate: string
+  startDateEC?: string        // Changed from startDate
+  startDateGC?: string         // Gregorian version (optional)
+  endDateEC?: string          // Changed from endDate
+  endDateGC?: string           // Gregorian version (optional)
   monthlySalary?: number
   salaryWhenLeft?: number
   providentFundSubmitted?: string
-  providentFundStartDate?: string
+  providentFundStartDateEC?: string  // Changed from providentFundStartDate
+  providentFundStartDateGC?: string   // Gregorian version (optional)
   terminationReason?: string
   documentUrl?: string
   documentId?: string
@@ -111,10 +118,13 @@ export interface Guarantor {
   guarantorOfficeName: string
   guarantorOfficeAddress: string
   guaranteeLetterNo: string
-  guaranteeLetterDate: string
+  guaranteeLetterDateEC?: string    // Changed from guaranteeLetterDate
+  guaranteeLetterDateGC?: string     // Gregorian version (optional)
   sdtLetterNo: string
-  sdtLetterDate: string
-  confirmedDate: string
+  sdtLetterDateEC?: string          // Changed from sdtLetterDate
+  sdtLetterDateGC?: string           // Gregorian version (optional)
+  confirmedDateEC?: string          // Changed from confirmedDate
+  confirmedDateGC?: string           // Gregorian version (optional)
   guaranteeLetterUrl?: string
   guaranteeLetterDocumentId?: string
   sdtLetterUrl?: string
@@ -158,6 +168,12 @@ export interface EmergencyContactAddress {
 // Updated Employee interface with all new fields
 export interface Employee {
   id: number
+
+  hireDateEC?: string      // Ethiopian hire date (DD/MM/YYYY)
+  dateOfBirthEC?: string   // Ethiopian date of birth (DD/MM/YYYY)
+  confirmationDateEC?: string
+  terminationDateEC?: string
+
   employeeId: string
   fullName: string
   firstName: string
@@ -223,9 +239,6 @@ export interface Employee {
   parentsInfo?: ParentsInfo
   currentCompany?: CurrentCompany
 }
-
-
-
 
 // ============================================================================
 // SEPARATE STATS TYPES
@@ -485,6 +498,33 @@ interface HiringDetailsParams {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ============================================================================
 // EMPLOYEE SERVICE
 // ============================================================================
@@ -541,6 +581,42 @@ async uploadEmployeeDocument(
       success: false,
       error: error.response?.data?.error || 'Failed to upload document'
     }
+  }
+}
+
+
+
+
+
+
+// ============================================================================
+// TERMINATION HISTORY METHODS
+// ============================================================================
+
+/**
+ * Get termination history for an employee
+ */
+async getTerminationHistory(employeeId: number) {
+  try {
+    const response = await api.get(`/employees/${employeeId}/termination-history`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Get termination history error:', error);
+    return {
+      success: false,
+      data: {
+        history: [],
+        summary: {
+          totalTerminations: 0,
+          currentStatus: 'active',
+          lastTermination: null
+        }
+      },
+      error: error.response?.data?.error || 'Failed to fetch termination history'
+    };
   }
 }
 
@@ -721,8 +797,8 @@ async getEmployeeById(id: number) {
 }
 
 
-  /**
- * Create new employee (WITH ALLOWANCES)
+/**
+ * Create new employee (WITH ALLOWANCES & ETHIOPIAN CALENDAR)
  */
 async createEmployee(employeeData: any) {
   try {
@@ -731,7 +807,7 @@ async createEmployee(employeeData: any) {
       firstName: employeeData.firstName,
       lastName: employeeData.lastName,
       middleName: employeeData.middleName,
-       fullNameEnglish: employeeData.fullNameEnglish,  // ← ADD THIS
+      fullNameEnglish: employeeData.fullNameEnglish,
       email: employeeData.email,
       personalEmail: employeeData.personalEmail,
       phone: employeeData.phone,
@@ -740,6 +816,12 @@ async createEmployee(employeeData: any) {
       maritalStatus: employeeData.maritalStatus,
       nationality: employeeData.nationality,
       nationalId: employeeData.nationalId,
+      
+      // ========== ETHIOPIAN CALENDAR DATES (ADD THESE) ==========
+      hireDateEC: employeeData.hireDateEC,
+      dateOfBirthEC: employeeData.dateOfBirthEC,
+      confirmationDateEC: employeeData.confirmationDateEC,
+      terminationDateEC: employeeData.terminationDateEC,
       
       // Employment
       departmentId: employeeData.departmentId,
@@ -760,7 +842,7 @@ async createEmployee(employeeData: any) {
       // Address
       address: employeeData.address,
       
-      // ========== ADD ALL MISSING JSONB FIELDS ==========
+      // JSONB Fields
       currentCompany: employeeData.currentCompany,
       birthPlace: employeeData.birthPlace,
       currentAddress: employeeData.currentAddress,
@@ -787,6 +869,13 @@ async createEmployee(employeeData: any) {
       bankAccount: employeeData.bankAccount
     }
     
+    console.log('📤 API Service - Sending payload:', {
+      hireDateEC: payload.hireDateEC,
+      dateOfBirthEC: payload.dateOfBirthEC,
+      firstName: payload.firstName,
+      lastName: payload.lastName
+    })
+    
     const response = await api.post('/employees', payload)
     return {
       success: true,
@@ -811,7 +900,7 @@ async updateEmployee(id: number, employeeData: any) {
       firstName: employeeData.firstName,
       lastName: employeeData.lastName,
       middleName: employeeData.middleName,
-        fullNameEnglish: employeeData.fullNameEnglish,  // ← ADD THIS
+      fullNameEnglish: employeeData.fullNameEnglish,
       email: employeeData.email,
       personalEmail: employeeData.personalEmail,
       phone: employeeData.phone,
@@ -820,6 +909,12 @@ async updateEmployee(id: number, employeeData: any) {
       maritalStatus: employeeData.maritalStatus,
       nationality: employeeData.nationality,
       nationalId: employeeData.nationalId,
+      
+      // ========== ETHIOPIAN CALENDAR DATES (ADD THESE) ==========
+      hireDateEC: employeeData.hireDateEC,
+      dateOfBirthEC: employeeData.dateOfBirthEC,
+      confirmationDateEC: employeeData.confirmationDateEC,
+      terminationDateEC: employeeData.terminationDateEC,
       
       // Employment
       departmentId: employeeData.departmentId,
@@ -843,7 +938,7 @@ async updateEmployee(id: number, employeeData: any) {
       address: employeeData.address,
       permanentAddress: employeeData.permanentAddress,
       
-      // ========== ADD ALL MISSING JSONB FIELDS ==========
+      // JSONB Fields
       currentCompany: employeeData.currentCompany,
       birthPlace: employeeData.birthPlace,
       currentAddress: employeeData.currentAddress,
@@ -883,6 +978,272 @@ async updateEmployee(id: number, employeeData: any) {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================================
+// DOCUMENT COMPLIANCE SUMMARY (NEW)
+// ============================================================================
+async getComplianceSummary(params?: { departmentId?: string }): Promise<{ 
+  success: boolean; 
+  data?: {
+    totalEmployees: number;
+    fullyCompliant: number;
+    missingDocuments: number;
+    overallRate: number;
+    idCard: { submitted: number; missing: number; rate: number };
+    cv: { submitted: number; missing: number; rate: number };
+    degree: { submitted: number; missing: number; rate: number };
+    guarantee: { withTwo: number; needSecond: number; missing: number; rate: number };
+  }; 
+  error?: string 
+}> {
+  try {
+    const response = await api.get('/employees/stats/compliance/summary', { params })
+    return {
+      success: true,
+      data: response.data.data
+    }
+  } catch (error: any) {
+    console.error('Get compliance summary error:', error)
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch compliance summary'
+    }
+  }
+}
+
+
+// In employeeService.js
+async getEmployeesWithoutNationalId(params?: {
+  departmentId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  try {
+    const response = await api.get('/employees/without-national-id', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Get employees without national ID error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch employees without national ID'
+    };
+  }
+}
+
+
+
+// ============================================================================
+// GET EMPLOYEES MISSING DEGREE
+// ============================================================================
+async getDegreeMissing(params?: {
+  departmentId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  try {
+    const response = await api.get('/employees/degree-missing', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Get employees missing degree error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch employees missing degree'
+    };
+  }
+}
+
+// ============================================================================
+// GET EMPLOYEES BY GUARANTEE STATUS
+// ============================================================================
+async getGuaranteeStatus(params?: {
+  departmentId?: string;
+  search?: string;
+  filter?: string; // 'missing', 'one', 'two', 'all'
+  page?: number;
+  limit?: number;
+}) {
+  try {
+    const response = await api.get('/employees/guarantee-status', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Get guarantee status error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch guarantee status'
+    };
+  }
+}
+
+
+
+// In employee.ts
+
+/**
+ * Get guarantee age distribution
+ */
+getGuaranteeAgeDistribution(params: { 
+  departmentId?: string; 
+  search?: string; 
+  includeDetails?: string | boolean;
+} = {}): Promise<any> {
+  return api.get('/employees/guarantee-age-distribution', { 
+    params: {
+      departmentId: params.departmentId || 'all',
+      search: params.search || '',
+      includeDetails: params.includeDetails ? 'true' : 'false'
+    }
+  });
+}
+
+
+
+
+
+/**
+ * Get guarantee age details with employee list
+ */
+getGuaranteeAgeDetails(params: { 
+  departmentId?: string; 
+  search?: string; 
+  ageRange?: string;
+  includeDetails?: string | boolean;
+  page?: number;
+  limit?: number;
+} = {}): Promise<any> {
+  return api.get('/employees/guarantee-age-details', { 
+    params: {
+      departmentId: params.departmentId || 'all',
+      search: params.search || '',
+      ageRange: params.ageRange || 'all',
+      includeDetails: params.includeDetails ? 'true' : 'false',
+      page: params.page || 1,
+      limit: params.limit || 10
+    }
+  });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================================
+// TERMINATE & REACTIVATE EMPLOYEE - NO REASON
+// ============================================================================
+
+/**
+ * Terminate an employee
+ * Sets status to 'terminated', adds termination dates, and sets isActive to false
+ */
+async terminateEmployee(id: number) {
+  try {
+    const response = await api.post(`/employees/${id}/terminate`);
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Terminate employee error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to terminate employee'
+    };
+  }
+}
+
+/**
+ * Reactivate a terminated employee
+ * Sets status to 'active', clears termination dates, and sets isActive to true
+ */
+async reactivateEmployee(id: number) {
+  try {
+    const response = await api.post(`/employees/${id}/reactivate`);
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Reactivate employee error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to reactivate employee'
+    };
+  }
+}
+
+
+
   /**
    * Delete employee (soft delete - terminate)
    */
@@ -942,6 +1303,32 @@ async importEmployees(employees: any[]): Promise<{
     }
   }
 }
+
+  // 👇 ADD THIS NEW METHOD TO SUPPORT EXCEL UPLOAD
+  /**
+   * Import employees from an Excel (.xlsx) file
+   * The backend parses the file and returns results
+   */
+  async importEmployeesFromExcel(formData: FormData) {
+    try {
+      const response = await api.post('/employees/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      }
+    } catch (error: any) {
+      console.error('Excel import error:', error)
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to import employees'
+      }
+    }
+  }
+  // 👆 END OF NEW METHOD
+
   // ============================================================================
   // SEPARATE ANALYTICS STATS METHODS
   // ============================================================================
@@ -1061,28 +1448,6 @@ async getHiringTrends(params?: { departmentId?: string; months?: string }) {
     }
   }
 
-  /**
-   * 7. Get Document Compliance
-   */
-  async getDocumentCompliance(params?: { documentType?: string; departmentId?: string; guaranteeMonths?: number }): Promise<{ success: boolean; data?: DocumentComplianceData; error?: string }> {
-    try {
-      const response = await api.get('/employees/stats/compliance', { params })
-      return {
-        success: true,
-        data: response.data.data
-      }
-    } catch (error: any) {
-      console.error('Get document compliance error:', error)
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to fetch document compliance'
-      }
-    }
-  }
-
-// ============================================================================
-// PAGINATED STATS METHODS (ADD THESE - DON'T DELETE THE OLD ONES)
-// ============================================================================
 
 /**
  * Get Department Distribution with pagination (FOR MODALS)
@@ -1162,26 +1527,91 @@ async getSalaryAnalysisPaginated(params: {
  * Get Department Employees (alias for getDepartmentDistributionPaginated)
  * Used in department modal
  */
+/**
+ * Get department employees (lazy loading - only when expanded)
+ */
 async getDepartmentEmployees(params: {
+  departmentId: string | number;
   page?: number;
   limit?: number;
-  departmentId?: string;
   search?: string;
 }) {
   try {
-    const response = await api.get('/employees/stats/departments', { params })
+    const response = await api.get(`/employees/departments/${params.departmentId}/employees`, {
+      params: {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        search: params.search || ''
+      }
+    });
     return {
       success: true,
       data: response.data.data
-    }
+    };
   } catch (error: any) {
-    console.error('Get department employees error:', error)
+    console.error('Get department employees error:', error);
     return {
       success: false,
       error: error.response?.data?.error || 'Failed to fetch department employees'
-    }
+    };
   }
 }
+
+
+// In employee.ts
+
+/**
+ * Get employment type employees (lazy loading - only when expanded)
+ */
+async getTypeEmployees(params: {
+  type: string;
+  search?: string;
+  departmentId?: string;
+}) {
+  try {
+    const response = await api.get(`/employees/employment-types/${params.type}/employees`, {
+      params: {
+        search: params.search || '',
+        departmentId: params.departmentId || 'all'
+      }
+    });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error: any) {
+    console.error('Get type employees error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch type employees'
+    };
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   // ============================================================================
@@ -1354,9 +1784,179 @@ async getEmployeeCompensationHistory(employeeId: number, params?: {
 }
 
 
-getHiringDetails(params: HiringDetailsParams) {
-  return api.get('/employees/stats/hiring-details', { params })
+// ============================================================================
+// HIRING DETAILS
+// ============================================================================
+
+/**
+ * Get hiring details (hired & terminated employees)
+ */
+async getHiringDetails(params?: { departmentId?: string | null; months?: string | number }) {
+  try {
+    // Build query parameters
+    const queryParams: any = {};
+    if (params?.departmentId && params.departmentId !== 'all' && params.departmentId !== 'null') {
+      queryParams.departmentId = params.departmentId;
+    }
+    if (params?.months && params.months !== 'all' && params.months !== 'null') {
+      queryParams.months = params.months;
+    }
+    
+    const response = await api.get('/employees/stats/hiring-details', { params: queryParams })
+    
+    // Return in the same format as other methods
+    return {
+      success: true,
+      data: response.data.data // This should contain { hired: [], terminated: [], summary: {} }
+    }
+  } catch (error: any) {
+    console.error('Get hiring details error:', error)
+    return {
+      success: false,
+      data: {
+        hired: [],
+        terminated: [],
+        summary: { totalHired: 0, totalTerminated: 0, netGrowth: 0 }
+      },
+      error: error.response?.data?.error || 'Failed to fetch hiring details'
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================================
+// DEPARTMENT TRANSFER METHODS
+// ============================================================================
+
+async getEmployeeDepartmentTransfers(
+  employeeId: number,
+  params?: {
+    status?: 'active' | 'reversed' | 'completed' | 'all'
+    page?: number
+    limit?: number
+  }
+) {
+  try {
+    const queryParams = new URLSearchParams()
+    
+    if (params?.status && params.status !== 'all') {
+      queryParams.append('status', params.status)
+    }
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+
+    const url = `/employees/department-transfers/employee/${employeeId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    const response = await api.get(url)
+    
+    return {
+      success: true,
+      data: response.data.data
+    }
+  } catch (error: any) {
+    console.error('Get employee department transfers error:', error)
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.error || 'Failed to fetch employee transfers'
+    }
+  }
+}
+/**
+ * Create a new department transfer
+ * POST /api/employees/department-transfers
+ * This saves the transfer record AND updates the employee's department
+ */
+async createDepartmentTransfer(params: {
+  employeeId: number
+  fromDepartmentId?: number  // Optional - uses employee's current department if not provided
+  toDepartmentId: number
+  transferDateEC: string     // Ethiopian calendar date (DD/MM/YYYY)
+  reason?: string
+  approvedBy?: number
+  notes?: string
+}) {
+  try {
+    // ✅ Updated URL: /employees/department-transfers
+    const response = await api.post('/employees/department-transfers', {
+      employeeId: params.employeeId,
+      fromDepartmentId: params.fromDepartmentId,
+      toDepartmentId: params.toDepartmentId,
+      transferDateEC: params.transferDateEC,
+      reason: params.reason,
+      approvedBy: params.approvedBy,
+      notes: params.notes
+    })
+    
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data
+    }
+  } catch (error: any) {
+    console.error('Create department transfer error:', error)
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to create department transfer'
+    }
+  }
+}
+
+/**
+ * Update transfer status (reverse or complete)
+ * PUT /api/employees/department-transfers/:transferId/status
+ * If status is 'reversed', the employee's department is reverted back
+ */
+async updateTransferStatus(transferId: number, params: {
+  status: 'active' | 'reversed' | 'completed'
+  notes?: string
+}) {
+  try {
+    // ✅ Updated URL: /employees/department-transfers/${transferId}/status
+    const response = await api.put(`/employees/department-transfers/${transferId}/status`, {
+      status: params.status,
+      notes: params.notes
+    })
+    
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data
+    }
+  } catch (error: any) {
+    console.error('Update transfer status error:', error)
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to update transfer status'
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // ============================================================================
   // UTILITY METHODS

@@ -1,9 +1,9 @@
 <template>
   <aside class="sidebar" :class="{ collapsed: isCollapsed }">
-    <!-- User Profile Section -->
+    <!-- User Profile Section - Fixed -->
     <div class="user-section" :class="{ 'collapsed-user': isCollapsed }">
       <div class="user-avatar">
-        <img :src="userAvatar" alt="User">
+        <img :src="userAvatar" alt="User" />
         <span class="online-dot"></span>
       </div>
       <div v-show="!isCollapsed" class="user-info">
@@ -12,11 +12,12 @@
       </div>
     </div>
 
-    <!-- Navigation Menu -->
-    <nav class="nav-menu">
-      <template v-for="item in menuItems" :key="item.path">
+    <!-- Navigation Menu - Scrollable -->
+    <div class="nav-menu-wrapper">
+      <nav class="nav-menu">
         <router-link
-          v-if="!item.dropdownMenu"
+          v-for="item in menuItems"
+          :key="item.path"
           :to="item.path"
           class="nav-item"
           :class="{ active: isActiveRoute(item.path) }"
@@ -25,45 +26,24 @@
           <span class="nav-text">{{ item.name }}</span>
           <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
         </router-link>
+      </nav>
+    </div>
 
-        <div v-if="item.dropdownMenu">
-          <button
-            @click="toggleDropdown(item.path)"
-            class="nav-item nav-dropdown-btn"
-            :class="{ active: openDropdown === item.path }"
-          >
-            <div class="nav-item-inner">
-              <component :is="getIcon(item.icon)" class="nav-icon" />
-              <span class="nav-text">{{ item.name }}</span>
-            </div>
-            <component
-              class="dropdown-chevron"
-              :is="openDropdown === item.path ? getIcon('ChevronDownIcon') : getIcon('ChevronRightIcon')"
-            />
-          </button>
-          <div v-if="openDropdown === item.path" class="nav-dropdown-content">
-            <router-link
-              v-for="sub in item.dropdownMenu"
-              :key="sub.path"
-              :to="sub.path"
-              class="nav-item sub-nav-item"
-              :class="{ active: isActiveRoute(sub.path) }"
-            >
-              <component :is="getIcon(sub.icon)" class="nav-icon sub-icon" />
-              <span class="nav-text">{{ sub.name }}</span>
-              <span v-if="sub.badge" class="nav-badge">{{ sub.badge }}</span>
-            </router-link>
-          </div>
-        </div>
-      </template>
-
-    </nav>
-
-    <!-- Bottom Section with Status -->
+    <!-- Bottom Section with Status - Fixed -->
     <div class="sidebar-footer">
       <button class="logout-btn" @click="handleLogout">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
+          />
         </svg>
         <span v-show="!isCollapsed">Logout</span>
       </button>
@@ -72,161 +52,412 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import * as icons from '@heroicons/vue/24/outline'
+import { ref, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import * as icons from "@heroicons/vue/24/outline";
 
 const props = defineProps({
   collapsed: {
     type: Boolean,
-    default: false
-  }
-})
+    default: false,
+  },
+});
 
-const emit = defineEmits(['update:collapsed'])
+const emit = defineEmits(["update:collapsed"]);
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-const userRole = computed(() => authStore.user?.role || 'employee')
-const isCollapsed = ref(props.collapsed)
-const openDropdown  = ref(null)
-
-const toggleDropdown = (path) => {
-  openDropdown.value = openDropdown.value === path ? null : path
-}
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+const userRole = computed(() => authStore.user?.role || "employee");
+const isCollapsed = ref(props.collapsed);
 
 const userDisplayName = computed(() => {
-  return authStore.user?.fullEmployeeName || authStore.user?.fullName || 'User'
-})
+  return authStore.user?.fullEmployeeName || authStore.user?.fullName || "User";
+});
 
 const userAvatar = computed(() => {
-  return authStore.user?.profilePicture || 
-         authStore.user?.profilePictureUrl || 
-         `https://ui-avatars.com/api/?background=6a11cb&color=fff&bold=true&name=${encodeURIComponent(userDisplayName.value)}`
-})
+  return (
+    authStore.user?.profilePicture ||
+    authStore.user?.profilePictureUrl ||
+    `https://ui-avatars.com/api/?background=6a11cb&color=fff&bold=true&name=${encodeURIComponent(userDisplayName.value)}`
+  );
+});
 
 const roleTitle = computed(() => {
   const titles = {
-    admin: 'Administrator',
-    hr: 'HR Manager',
-    finance: 'Finance Officer',
-    employee: 'Employee',
-    attendance: 'Attendance Manager',
-    charity_admin: 'Charity Admin',
-    charity_teamleader: 'Team Leader',
-
-  }
-  return titles[userRole.value] || 'User'
-})
+    admin: "Administrator",
+    hr: "HR Manager",
+    finance: "Finance Officer",
+    employee: "Employee",
+    attendance: "Attendance Manager",
+    storekeeper: "StoreKeeper",
+    store_it: "Store IT",
+    checker: "checker",
+    cost: "Cost analyst",
+    nebret: "Asset Manager",
+    formulation_manager:"formulation manager",
+    production_order:"production_order",
+    chemist:"chemist",
+  };
+  return titles[userRole.value] || "User";
+});
 
 const roleMenus = {
   admin: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon', badge: null },
-    { name: 'Users', path: '/users', icon: 'UsersIcon', badge: null },
-    { name: 'Employees', path: '/employees', icon: 'UserGroupIcon', badge: null },
-    { name: 'Attendance', path: '/attendance', icon: 'ClockIcon', badge: null },
-    { name: 'Leave Requests', path: '/leaves', icon: 'CalendarIcon', badge: null },
-    { name: 'payroll', path: '/payroll', icon: 'CurrencyDollarIcon', badge: null },
-    // { name: 'Reports', path: '/reports', icon: 'ChartBarIcon', badge: null },
-    { name: 'Settings', path: '/settings', icon: 'CogIcon', badge: null },
-     
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    { name: "Users", path: "/users", icon: "UsersIcon", badge: null },
     {
-      name: 'Charity',
-      path: '/charity',
-      icon: 'HeartIcon',
-      dropdownMenu: [
-        { name: 'Beneficiaries', path: '/charity/beneficiaries', icon: 'UsersIcon' },
-        { name: 'Teams',         path: '/charity/teams',         icon: 'RectangleStackIcon' },
-        { name: 'Settings',      path: '/charity/settings',      icon: 'CogIcon' },
-      ]
+      name: "Employees",
+      path: "/employees",
+      icon: "UserGroupIcon",
+      badge: null,
+    },
+    { name: "Attendance", path: "/attendance", icon: "ClockIcon", badge: null },
+    {
+      name: "Leave Requests",
+      path: "/leaves",
+      icon: "CalendarIcon",
+      badge: null,
+    },
+    {
+      name: "payroll",
+      path: "/payroll",
+      icon: "CurrencyDollarIcon",
+      badge: null,
+    },
+    {
+      name: "inventory",
+      path: "/inventory",
+      icon: "ChartBarIcon",
+      badge: null,
+    },
+    {
+      name: "stores List",
+      path: "/store-management",
+      icon: "ClockIcon",
+      badge: null,
+    },
+    {
+      name: "store groups",
+      path: "/group-management",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "store-to-store ",
+      path: "/store-to-store",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "store-balance ",
+      path: "/store-balance",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "balance-corrections ",
+      path: "/store-balance-corrections",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "store-transaction ",
+      path: "/store-transaction",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
+    { name: "audit", path: "/audit", icon: "ClockIcon", badge: null },
+    { name: "item-cost", path: "/item-cost", icon: "CogIcon", badge: null },
+    { name: "Settings", path: "/settings", icon: "CogIcon", badge: null },
+     { name: "finished goods", path: "/finished-goods", icon: "CogIcon", badge: null },
+          { name: "converted balance", path: "/converted-balance", icon: "CogIcon", badge: null },
+           { name: "productions", path: "/productions", icon: "CogIcon", badge: null },
+           { name: "formulation", path: "/formulation", icon: "CogIcon", badge: null },
+           { name: "orders", path: "/orders", icon: "CogIcon", badge: null },
+           
+           
+    // {
+    //   name: "Asset Management",
+    //   path: "/Asset-Management",
+    //   icon: "CogIcon",
+    //   badge: null,
+    // }, // ← Primary menu for Asset Manager
+    // {
+    //   name: "fleet Management",
+    //   path: "/fleet-Management",
+    //   icon: "CogIcon",
+    //   badge: null,
+    // }, // ← Primary menu for Asset Manager
+    {
+      name: "pending-request",
+      path: "/pending-request",
+      icon: "CogIcon",
+      badge: null,
+    }, // ← Primary menu for Asset Manager
+  ],
+  hr: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    {
+      name: "Employees",
+      path: "/employees",
+      icon: "UserGroupIcon",
+      badge: null,
+    },
+    { name: "Attendance", path: "/attendance", icon: "ClockIcon", badge: null },
+    {
+      name: "Leave Requests",
+      path: "/leaves",
+      icon: "CalendarIcon",
+      badge: null,
     },
   ],
-
-
-  // ── charity_admin ──────────────────────────────────────────────────────────
-  charity_admin: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon' },
-    { name: 'Beneficiaries', path: '/charity/beneficiaries', icon: 'UsersIcon' },
-    { name: 'Teams',         path: '/charity/teams',         icon: 'RectangleStackIcon' },
-    { name: 'Settings',      path: '/charity/settings',      icon: 'CogIcon' },
-  ],
-
-  // ── charity_teamleader ─────────────────────────────────────────────────────
-  charity_teamleader: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon' },
-    { name: 'My Beneficiaries', path: '/charity/beneficiaries', icon: 'UsersIcon' },
-    { name: 'My Team',          path: '/charity/teams',         icon: 'RectangleStackIcon' }, // Scoped to self in controller
-  ],
-
-
-
-  hr: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon', badge: null },
-    { name: 'Employees', path: '/employees', icon: 'UserGroupIcon', badge: null },
-    { name: 'Attendance', path: '/attendance', icon: 'ClockIcon', badge: null },
-    { name: 'Leave Requests', path: '/leaves', icon: 'CalendarIcon', badge: null },
-    // { name: 'Reports', path: '/reports', icon: 'ChartBarIcon', badge: null }
-  ],
   finance: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon', badge: null },
-    { name: 'Employees', path: '/employees', icon: 'UserGroupIcon', badge: null },
-      { name: 'Attendance', path: '/attendance', icon: 'ClockIcon', badge: null },
-    { name: 'payroll', path: '/payroll', icon: 'CurrencyDollarIcon', badge: null },
-  
-    // { name: 'Reports', path: '/reports', icon: 'ChartBarIcon', badge: null }
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    {
+      name: "Employees",
+      path: "/employees",
+      icon: "UserGroupIcon",
+      badge: null,
+    },
+    { name: "Attendance", path: "/attendance", icon: "ClockIcon", badge: null },
+    {
+      name: "payroll",
+      path: "/payroll",
+      icon: "CurrencyDollarIcon",
+      badge: null,
+    },
   ],
   employee: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon', badge: null },
-    { name: 'My Profile', path: '/profile', icon: 'UserIcon', badge: null },
-    { name: 'My Attendance', path: '/my-attendance', icon: 'ClockIcon', badge: null },
-    { name: 'My Leaves', path: '/my-leaves', icon: 'CalendarIcon', badge: null },
-    { name: 'My payroll', path: '/my-payroll', icon: 'CurrencyDollarIcon', badge: null }
-  ],
-    attendance: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'HomeIcon', badge: null },
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
     // { name: 'My Profile', path: '/profile', icon: 'UserIcon', badge: null },
-    { name: 'Attendance', path: '/attendance', icon: 'ClockIcon', badge: null },
-    { name: 'Leave List', path: '/approved-leaves-list', icon: 'CalendarIcon', badge: null },
-    // { name: 'My payroll', path: '/my-payroll', icon: 'CurrencyDollarIcon', badge: null }
-  ]
+    // { name: 'My Attendance', path: '/my-attendance', icon: 'ClockIcon', badge: null },
+    // { name: 'My Leaves', path: '/my-leaves', icon: 'CalendarIcon', badge: null },
+    // { name: 'My payroll', path: '/my-payroll', icon: 'CurrencyDollarIcon', badge: null },
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
+  ],
+  attendance: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    { name: "Attendance", path: "/attendance", icon: "ClockIcon", badge: null },
+    {
+      name: "Leave List",
+      path: "/approved-leaves-list",
+      icon: "CalendarIcon",
+      badge: null,
+    },
+    { name: "My Profile", path: "/profile", icon: "UserIcon", badge: null },
+  ],
+  storekeeper: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    // { name: 'stores List', path: '/store-management', icon: 'ClockIcon', badge: null },
+    // { name: 'store groups', path: '/group-management', icon: 'UserIcon', badge: null },
+    // { name: 'store-to-store ', path: '/store-to-store', icon: 'UserIcon', badge: null },
+    {
+      name: "store-balance ",
+      path: "/store-balance",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "store-transaction ",
+      path: "/store-transaction",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
 
-}
+      // { name: "converted balance", path: "/converted-balance", icon: "CogIcon", badge: null },
+       
+    //  { name: 'My Profile', path: '/profile', icon: 'UserIcon', badge: null },
+    // { name: 'audit', path: '/audit', icon: 'ClockIcon', badge: null },
+  ],
+  store_it: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    // { name: 'stores List', path: '/store-management', icon: 'ClockIcon', badge: null },
+    // { name: 'store groups', path: '/group-management', icon: 'UserIcon', badge: null },
+    // { name: 'store-to-store ', path: '/store-to-store', icon: 'UserIcon', badge: null },
+
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "store-balance ",
+      path: "/store-balance",
+      icon: "UserIcon",
+      badge: null,
+    },
+      // { name: "converted balance", path: "/converted-balance", icon: "CogIcon", badge: null },
+      //  { name: "productions", path: "/productions", icon: "CogIcon", badge: null },
+       
+    {
+      name: "store-transaction ",
+      path: "/store-transaction",
+      icon: "UserIcon",
+      badge: null,
+    },
+    // { name: "converted balance", path: "/converted-balance", icon: "CogIcon", badge: null },
+    // { name: 'My Profile', path: '/profile', icon: 'UserIcon', badge: null },
+    // { name: 'audit', path: '/audit', icon: 'ClockIcon', badge: null },
+  ],
+  checker: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    { name: "Users", path: "/users", icon: "UsersIcon", badge: null },
+    {
+      name: "stores List",
+      path: "/store-management",
+      icon: "ClockIcon",
+      badge: null,
+    },
+    {
+      name: "store groups",
+      path: "/group-management",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "inventory",
+      path: "/inventory",
+      icon: "ChartBarIcon",
+      badge: null,
+    },
+    // { name: 'stores List', path: '/store-management', icon: 'ClockIcon', badge: null },
+    // { name: 'store groups', path: '/group-management', icon: 'UserIcon', badge: null },
+    //  { name: 'My Profile', path: '/profile', icon: 'UserIcon', badge: null },
+    // { name: 'store-to-store ', path: '/store-to-store', icon: 'UserIcon', badge: null },
+
+    { name: "audit", path: "/audit", icon: "ClockIcon", badge: null },
+
+    {
+      name: "balance-corrections ",
+      path: "/store-balance-corrections",
+      icon: "UserIcon",
+      badge: null,
+    },
+    {
+      name: "pending-request",
+      path: "/pending-request",
+      icon: "CogIcon",
+      badge: null,
+    }, // ← Primary menu for Asset Manager
+  ],
+  cost: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    { name: "item-cost", path: "/item-cost", icon: "CogIcon", badge: null },
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
+  ],
+  nebret: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
+    // { name: 'Asset Management', path: '/Asset-Management', icon: 'CogIcon', badge: null },
+    // { name: 'Employees', path: '/employees', icon: 'UserGroupIcon', badge: null },  // ← Added for reference
+    // { name: 'Inventory', path: '/inventory', icon: 'ChartBarIcon', badge: null },  // ← Added for reference
+  ],
+    formulation_manager: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    // {
+    //   name: "item-requests ",
+    //   path: "/item-requests",
+    //   icon: "UserIcon",
+    //   badge: null,
+    // },
+      { name: "finished goods", path: "/finished-goods", icon: "CogIcon", badge: null },
+          // { name: "converted balance", path: "/converted-balance", icon: "CogIcon", badge: null },
+          //  { name: "productions", path: "/productions", icon: "CogIcon", badge: null },
+           { name: "formulation", path: "/formulation", icon: "CogIcon", badge: null },
+  ],
+
+    production_order: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    {
+      name: "item-requests ",
+      path: "/item-requests",
+      icon: "UserIcon",
+      badge: null,
+    },
+      { name: "orders", path: "/orders", icon: "CogIcon", badge: null },
+
+  ],
+   chemist: [
+    { name: "Dashboard", path: "/dashboard", icon: "HomeIcon", badge: null },
+    // {
+    //   name: "item-requests ",
+    //   path: "/item-requests",
+    //   icon: "UserIcon",
+    //   badge: null,
+    // },
+      // { name: "finished goods", path: "/finished-goods", icon: "CogIcon", badge: null },
+          // { name: "converted balance", path: "/converted-balance", icon: "CogIcon", badge: null },
+          //  { name: "productions", path: "/productions", icon: "CogIcon", badge: null },
+           { name: "formulation", path: "/formulation", icon: "CogIcon", badge: null },
+                { name: "order-notifications", path: "/order-notifications", icon: "CogIcon", badge: null },
+                  { name: "productions", path: "/productions", icon: "CogIcon", badge: null },
+  ],
+
+  
+};
 
 const menuItems = computed(() => {
-  return roleMenus[userRole.value] || roleMenus.employee
-})
+  return roleMenus[userRole.value] || roleMenus.employee;
+});
 
 const getIcon = (iconName) => {
-  return icons[iconName] || icons.HomeIcon
-}
+  return icons[iconName] || icons.HomeIcon;
+};
 
-// Check if route is active - exact match or starts with path
 const isActiveRoute = (path) => {
-  const currentPath = route.path
-  if (path === '/dashboard') {
-    return currentPath === '/dashboard'
+  const currentPath = route.path;
+  if (path === "/dashboard") {
+    return currentPath === "/dashboard";
   }
-  return currentPath === path || currentPath.startsWith(path + '/')
-}
+  return currentPath === path || currentPath.startsWith(path + "/");
+};
 
 const toggleCollapse = () => {
-  isCollapsed.value = !isCollapsed.value
-  emit('update:collapsed', isCollapsed.value)
-  localStorage.setItem('sidebarCollapsed', isCollapsed.value)
-}
+  isCollapsed.value = !isCollapsed.value;
+  emit("update:collapsed", isCollapsed.value);
+  localStorage.setItem("sidebarCollapsed", isCollapsed.value);
+};
 
 const handleLogout = async () => {
-  await authStore.logout()
-  router.push('/login')
-}
+  await authStore.logout();
+  router.push("/login");
+};
 
 // Load saved state
-const savedState = localStorage.getItem('sidebarCollapsed')
+const savedState = localStorage.getItem("sidebarCollapsed");
 if (savedState !== null) {
-  isCollapsed.value = savedState === 'true'
-  emit('update:collapsed', isCollapsed.value)
+  isCollapsed.value = savedState === "true";
+  emit("update:collapsed", isCollapsed.value);
 }
 </script>
 
@@ -242,34 +473,22 @@ if (savedState !== null) {
   position: sticky;
   top: 60px;
   height: calc(100vh - 60px);
-  overflow-y: auto;
+  overflow: hidden; /* Prevent sidebar itself from scrolling */
 }
 
 .sidebar.collapsed {
   width: 70px;
 }
 
-/* Custom scrollbar */
-.sidebar::-webkit-scrollbar {
-  width: 5px;
-}
-.sidebar::-webkit-scrollbar-track {
-  background: #2a2a4a;
-}
-.sidebar::-webkit-scrollbar-thumb {
-  background: #5a5a8a;
-  border-radius: 5px;
-}
-
-/* User Section */
+/* User Section - Fixed */
 .user-section {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 20px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 16px;
   flex-shrink: 0;
+  min-height: 80px;
 }
 
 .user-avatar {
@@ -298,8 +517,15 @@ if (savedState !== null) {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.7; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
 }
 
 .user-info {
@@ -323,9 +549,32 @@ if (savedState !== null) {
   padding: 20px 0;
 }
 
-/* Navigation Menu */
-.nav-menu {
+/* Navigation Menu Wrapper - Scrollable */
+.nav-menu-wrapper {
   flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* Custom scrollbar for nav menu */
+.nav-menu-wrapper::-webkit-scrollbar {
+  width: 5px;
+}
+
+.nav-menu-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav-menu-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+}
+
+.nav-menu-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.nav-menu {
   padding: 0 12px;
 }
 
@@ -347,7 +596,6 @@ if (savedState !== null) {
   color: white;
 }
 
-/* Only the active route gets the gradient background */
 .nav-item.active {
   background: linear-gradient(135deg, #6a11cb, #7c3aed);
   color: white;
@@ -377,64 +625,12 @@ if (savedState !== null) {
   margin-left: auto;
 }
 
-/* Dropdown specific */
-.nav-dropdown-btn {
-  width: 100%;
-  justify-content: space-between;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.nav-dropdown-btn:hover {
-  background: #2d3a54;
-  color: white;
-}
-
-.nav-dropdown-btn.active {
-  background: #2d3a54;
-  color: white;
-  box-shadow: none;
-}
-
-.nav-item-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.dropdown-chevron {
-  width: 12px;
-  height: 12px;
-  opacity: 0.7;
-}
-
-.nav-dropdown-content {
-  margin-top: 4px;
-  margin-left: 36px;
-  padding-left: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sub-nav-item {
-  padding: 8px 12px;
-  font-size: 0.8rem;
-}
-
-.sub-icon {
-  width: 16px;
-  height: 16px;
-}
-
-/* Sidebar Footer */
+/* Sidebar Footer - Fixed */
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
+  background: inherit; /* Matches sidebar background */
 }
 
 .logout-btn {
@@ -491,12 +687,12 @@ if (savedState !== null) {
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }
-  
+
   .sidebar.collapsed {
     transform: translateX(0);
     width: 260px;
   }
-  
+
   .sidebar.collapsed .nav-text {
     display: inline;
   }
